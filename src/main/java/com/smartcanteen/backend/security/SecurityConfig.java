@@ -1,4 +1,4 @@
-package com.smartcanteen.backend.config;
+package com.smartcanteen.backend.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,7 +18,14 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws  Exception{
         http
                 .csrf(csrf->csrf.disable())
-                .authorizeHttpRequests(auth->auth.anyRequest().permitAll());
+                .authorizeHttpRequests(auth->auth
+                        .requestMatchers("/users/register").permitAll()
+                        .requestMatchers("/users/login").permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/user/**").hasAnyRole("USER","ADMIN")
+                        .anyRequest().authenticated()
+                )
+                .httpBasic(httpBasic -> {});
         return http.build();
     }
 }

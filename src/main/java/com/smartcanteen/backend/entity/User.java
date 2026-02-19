@@ -15,14 +15,14 @@ public class User {
     private String email;
 
     private String password;
-
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     // Default Constructor
     public User() {
     }
     // Constructor
-    public User(String role, String password, String email, String name) {
+    public User(Role role, String password, String email, String name) {
         this.role = role;
         this.password = password;
         this.email = email;
@@ -60,11 +60,11 @@ public class User {
         this.password = password;
     }
 
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
 
-    public void setRole(String role) {
+    public void setRole(Role role) {
         this.role = role;
     }
 }
