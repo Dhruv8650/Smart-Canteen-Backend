@@ -1,5 +1,6 @@
 package com.smartcanteen.backend.controller;
 
+import com.smartcanteen.backend.dto.UserResponse;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.service.UserService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,12 +19,27 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public User register(@RequestBody User user){
-        return userService.registerUser(user);
+    public UserResponse register(@RequestBody User user){
+
+        User savedUser =userService.registerUser(user);
+
+        return new UserResponse(
+                savedUser.getId(),
+                savedUser.getName(),
+                savedUser.getEmail(),
+                savedUser.getRole()
+        );
     }
 
     @PostMapping("/login")
-    public User login(@RequestBody User user){
-        return userService.login(user.getEmail(),user.getPassword());
+    public UserResponse login(@RequestBody User user){
+
+        User loggedInUser= userService.login(user.getEmail(),user.getPassword());
+        return new UserResponse(
+                loggedInUser.getId(),
+                loggedInUser.getName(),
+                loggedInUser.getEmail(),
+                loggedInUser.getRole()
+        );
     }
 }
