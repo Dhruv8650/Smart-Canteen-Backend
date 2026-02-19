@@ -1,6 +1,9 @@
 package com.smartcanteen.backend.service.impl;
 
 import com.smartcanteen.backend.entity.User;
+import com.smartcanteen.backend.exception.EmailAlreadyExistException;
+import com.smartcanteen.backend.exception.InvalidCredentialsException;
+import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.UserService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,7 +24,7 @@ public class UserServiceImpl implements UserService {
     public User registerUser(User user){
 
         if(userRepository.findByEmail(user.getEmail()).isPresent()){
-            throw new RuntimeException("Email already exist");
+            throw new EmailAlreadyExistException("Email already exist");
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
@@ -30,10 +33,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User login(String email, String password) {
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException(("User not found")));
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException(("User not found")));
 
         if(!passwordEncoder.matches(password,user.getPassword())){
-            throw new RuntimeException(("Invalid password"));
+            throw new InvalidCredentialsException("Invalid password");
         }
         return user;
     }
