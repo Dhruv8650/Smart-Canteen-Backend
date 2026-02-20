@@ -1,14 +1,14 @@
-package com.smartcanteen.backend.dto;
+package com.smartcanteen.backend.dto.response;
 
 import com.smartcanteen.backend.entity.Role;
 
-public class UserResponse {
-    private Long id;
-    private String name;
-    private String email;
-    private Role role;
+public class UserResponseDTO {
+    private final Long id;
+    private final String name;
+    private final String email;
+    private final Role role;
 
-    public UserResponse(Long id, String name, String email, Role role) {
+    public UserResponseDTO(Long id, String name, String email, Role role) {
         this.id = id;
         this.name = name;
         this.email = email;

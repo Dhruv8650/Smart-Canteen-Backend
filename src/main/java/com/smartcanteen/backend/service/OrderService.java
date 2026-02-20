@@ -1,14 +1,16 @@
 package com.smartcanteen.backend.service;
 
+import com.smartcanteen.backend.dto.request.OrderRequestDTO;
+import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.entity.Order;
 
 import java.util.List;
 
 
 public interface OrderService {
-    Order placeOrder(List<Long>foodIds,String userEmail);
+    OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail);
 
-    List<Order> getUserOrder(String userEmail);
+    List<OrderResponseDTO> getUserOrder(String userEmail);
 
-    List<Order> getAllOrders();
+    List<OrderResponseDTO> getAllOrders();
 }
