@@ -1,5 +1,7 @@
 package com.smartcanteen.backend.controller;
 
+import com.smartcanteen.backend.dto.request.LoginRequestDTO;
+import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.service.UserService;
@@ -19,27 +21,27 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public UserResponseDTO register(@RequestBody User user){
+    public UserResponseDTO register(@RequestBody RegisterRequestDTO request){
 
-        User savedUser =userService.registerUser(user);
+        User savedUser =userService.registerUser(request);
 
         return new UserResponseDTO(
                 savedUser.getId(),
                 savedUser.getName(),
-                savedUser.getEmail()
-                //savedUser.getRole()
+                savedUser.getEmail(),
+                savedUser.getRole()
         );
     }
 
     @PostMapping("/login")
-    public UserResponseDTO login(@RequestBody User user){
+    public UserResponseDTO login(@RequestBody LoginRequestDTO request){
 
-        User loggedInUser= userService.login(user.getEmail(),user.getPassword());
+        User loggedInUser= userService.login(request.getEmail(),request.getPassword());
         return new UserResponseDTO(
                 loggedInUser.getId(),
                 loggedInUser.getName(),
-                loggedInUser.getEmail()
-                //loggedInUser.getRole()
+                loggedInUser.getEmail(),
+                loggedInUser.getRole()
         );
     }
 }

@@ -13,8 +13,8 @@ public class OrderMapper {
         UserResponseDTO userDto = new UserResponseDTO(
                 order.getUser().getId(),
                 order.getUser().getName(),
-                order.getUser().getEmail()
-                //order.getUser().getRole()
+                order.getUser().getEmail(),
+                order.getUser().getRole()
         );
 
         List<FoodItemResponseDTO> foodDTOs= order.getFoodItems()

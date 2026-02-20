@@ -1,5 +1,7 @@
 package com.smartcanteen.backend.service.impl;
 
+import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
+import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.exception.EmailAlreadyExistException;
 import com.smartcanteen.backend.exception.InvalidCredentialsException;
@@ -21,12 +23,16 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User registerUser(User user){
+    public User registerUser(RegisterRequestDTO request){
 
-        if(userRepository.findByEmail(user.getEmail()).isPresent()){
+        if(userRepository.findByEmail(request.getEmail()).isPresent()){
             throw new EmailAlreadyExistException("Email already exist");
         }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(Role.USER);
 
         return userRepository.save(user);
     }
@@ -40,4 +46,6 @@ public class UserServiceImpl implements UserService {
         }
         return user;
     }
+
+
 }

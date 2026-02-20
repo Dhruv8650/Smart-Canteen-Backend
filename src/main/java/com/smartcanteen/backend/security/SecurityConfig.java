@@ -24,7 +24,8 @@ public class SecurityConfig {
                         .requestMatchers("/users/register").permitAll()
                         .requestMatchers("/users/login").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/user/**").hasAnyRole("USER","ADMIN")
+                        .requestMatchers("/manager/**").hasRole("MANAGER")
+                        .requestMatchers("/user/**").hasRole("USER")
                         .anyRequest().authenticated()
                 )
                 .httpBasic(httpBasic -> {});
