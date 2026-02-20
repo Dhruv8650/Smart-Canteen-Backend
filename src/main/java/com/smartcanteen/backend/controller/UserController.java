@@ -26,8 +26,8 @@ public class UserController {
         return new UserResponseDTO(
                 savedUser.getId(),
                 savedUser.getName(),
-                savedUser.getEmail(),
-                savedUser.getRole()
+                savedUser.getEmail()
+                //savedUser.getRole()
         );
     }
 
@@ -38,8 +38,8 @@ public class UserController {
         return new UserResponseDTO(
                 loggedInUser.getId(),
                 loggedInUser.getName(),
-                loggedInUser.getEmail(),
-                loggedInUser.getRole()
+                loggedInUser.getEmail()
+                //loggedInUser.getRole()
         );
     }
 }

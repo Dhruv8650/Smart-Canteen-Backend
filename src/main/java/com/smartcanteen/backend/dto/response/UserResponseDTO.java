@@ -6,13 +6,13 @@ public class UserResponseDTO {
     private final Long id;
     private final String name;
     private final String email;
-    private final Role role;
+    //private final Role role;
 
-    public UserResponseDTO(Long id, String name, String email, Role role) {
+    public UserResponseDTO(Long id, String name, String email) {
         this.id = id;
         this.name = name;
         this.email = email;
-        this.role = role;
+        //this.role = role;
     }
 
     public Long getId() {
@@ -27,7 +27,7 @@ public class UserResponseDTO {
         return email;
     }
 
-    public Role getRole() {
+    /*public Role getRole() {
         return role;
-    }
+    }*/
 }
