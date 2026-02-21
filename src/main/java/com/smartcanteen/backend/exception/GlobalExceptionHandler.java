@@ -28,6 +28,12 @@ public class GlobalExceptionHandler {
         return buildResponse(ex.getMessage(), HttpStatus.UNAUTHORIZED);
     }
 
+    @ExceptionHandler(OrderNotFoundException.class)
+    public ResponseEntity<?> handleOrderNotFoundException(OrderNotFoundException ex){
+        return buildResponse(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+
     private ResponseEntity<?> buildResponse(String message,HttpStatus status){
         Map<String,Object> body=new HashMap<>();
         body.put("timestamp", LocalDateTime.now());

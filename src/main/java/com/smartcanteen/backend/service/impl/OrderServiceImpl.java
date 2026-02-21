@@ -6,6 +6,7 @@ import com.smartcanteen.backend.entity.FoodItem;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.entity.User;
+import com.smartcanteen.backend.exception.OrderNotFoundException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.mapper.OrderMapper;
 import com.smartcanteen.backend.repository.FoodItemRepository;
@@ -14,6 +15,7 @@ import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.OrderService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,10 +27,12 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final FoodItemRepository foodItemRepository;
 
+
     public OrderServiceImpl(OrderRepository orderRepository,UserRepository userRepository,FoodItemRepository foodItemRepository){
         this.orderRepository=orderRepository;
         this.userRepository=userRepository;
         this.foodItemRepository=foodItemRepository;
+
     }
 
     @Override
@@ -67,6 +71,52 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<OrderResponseDTO> getAllOrders() {
         return orderRepository.findAll()
+                .stream()
+                .map(OrderMapper::toDTO)
+                .toList();
+    }
+
+
+
+    private void validateStatusTransition(OrderStatus current,OrderStatus next){
+        switch(current){
+            case PENDING -> {
+                if(next != OrderStatus.PREPARING && next!= OrderStatus.CANCELLED){
+                    throw new IllegalStateException("Invalid transition form PENDING");
+                }
+            }
+            case PREPARING -> {
+                if(next!= OrderStatus.READY && next != OrderStatus.CANCELLED){
+                    throw new IllegalStateException("Invalid transition form PREPARING");
+                }
+            }
+
+            case READY -> {
+                if(next!=OrderStatus.COMPLETED){
+                    throw new IllegalStateException("Invalid transition form READY");
+                }
+            }
+            default -> throw new IllegalStateException("Order cannot be modified in current state");
+        }
+    }
+    @Transactional
+    @Override
+    public OrderResponseDTO updateOrderStatus(Long orderId, OrderStatus newStatus) {
+        Order order=orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found with id: "+orderId));
+
+        validateStatusTransition(order.getStatus(),newStatus);
+
+        order.setStatus(newStatus);
+
+
+
+        return OrderMapper.toDTO(order);
+    }
+
+    @Override
+    public List<OrderResponseDTO> getPendingOrders(){
+        return orderRepository.findByStatus(OrderStatus.PENDING)
                 .stream()
                 .map(OrderMapper::toDTO)
                 .toList();
