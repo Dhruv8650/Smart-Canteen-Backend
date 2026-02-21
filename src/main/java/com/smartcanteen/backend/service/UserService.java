@@ -8,5 +8,5 @@ public interface UserService {
 
     User login(String email,String password);
 
-
+    User createManager(String name, String email, String password);
 }

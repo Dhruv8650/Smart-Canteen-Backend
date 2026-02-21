@@ -47,5 +47,19 @@ public class UserServiceImpl implements UserService {
         return user;
     }
 
+    @Override
+    public User createManager(String name, String email, String password) {
+        if(userRepository.findByEmail(email).isPresent()){
+            throw new RuntimeException("Email Already exist");
+        }
+        User manager=new User();
+        manager.setName(name);
+        manager.setEmail(email);
+        manager.setPassword(passwordEncoder.encode(password));
+        manager.setRole(Role.MANAGER);
+
+        return userRepository.save(manager);
+    }
+
 
 }
