@@ -19,7 +19,7 @@ public class ManagerController {
         this.orderService=orderService;
     }
 
-    @PutMapping("/{orderId/status}")
+    @PutMapping("/{orderId}/status")
     @PreAuthorize("hasRole('MANAGER')")
     public OrderResponseDTO updateStatus(@PathVariable Long orderId,
                                          @RequestBody OrderStatus status){
