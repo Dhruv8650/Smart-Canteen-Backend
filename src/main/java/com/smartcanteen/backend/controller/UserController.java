@@ -2,6 +2,7 @@ package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.request.LoginRequestDTO;
 import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
+import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.service.UserService;
@@ -34,14 +35,9 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public UserResponseDTO login(@RequestBody LoginRequestDTO request){
+    public AuthResponseDTO login(@RequestBody User user){
 
-        User loggedInUser= userService.login(request.getEmail(),request.getPassword());
-        return new UserResponseDTO(
-                loggedInUser.getId(),
-                loggedInUser.getName(),
-                loggedInUser.getEmail(),
-                loggedInUser.getRole()
-        );
+
+        return userService.login(user.getEmail(), user.getPassword() );
     }
 }

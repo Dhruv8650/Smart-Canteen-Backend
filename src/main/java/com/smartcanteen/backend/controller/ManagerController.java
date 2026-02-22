@@ -10,7 +10,7 @@ import java.security.PublicKey;
 import java.util.List;
 
 @RestController
-@RequestMapping("/manager/orers")
+@RequestMapping("/manager/orders")
 public class ManagerController {
 
     private final OrderService orderService;
@@ -29,6 +29,10 @@ public class ManagerController {
     @GetMapping("/pending")
     @PreAuthorize("hasRole('MANAGER')")
     public List<OrderResponseDTO> getPendingOrders(){
+        System.out.println("Authentication inside controller: " +
+                org.springframework.security.core.context.SecurityContextHolder
+                        .getContext()
+                        .getAuthentication());
         return orderService.getPendingOrders();
     }
 }

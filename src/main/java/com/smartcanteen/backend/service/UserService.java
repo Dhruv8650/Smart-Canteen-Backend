@@ -1,12 +1,13 @@
 package com.smartcanteen.backend.service;
 
 import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
+import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.entity.User;
 
 public interface UserService {
     User registerUser(RegisterRequestDTO request);
 
-    User login(String email,String password);
+    AuthResponseDTO login(String email, String password);
 
     User createManager(String name, String email, String password);
 }
