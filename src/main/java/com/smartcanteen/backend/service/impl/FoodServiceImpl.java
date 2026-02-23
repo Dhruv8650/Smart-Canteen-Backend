@@ -1,54 +1,75 @@
 package com.smartcanteen.backend.service.impl;
 
+import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
+import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.entity.FoodItem;
 import com.smartcanteen.backend.exception.FoodNotFoundException;
 import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.service.FoodService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class FoodServiceImpl implements FoodService {
-    private final FoodItemRepository foodItemRepository;
 
-    public FoodServiceImpl(FoodItemRepository foodItemRepository){
-            this.foodItemRepository=foodItemRepository;
+    private final FoodItemRepository repository;
+
+    public FoodServiceImpl(FoodItemRepository repository) {
+        this.repository = repository;
     }
 
     @Override
-    public FoodItem createFood(FoodItem food){
-        return foodItemRepository.save(food);
+    public FoodItemResponseDTO createFood(FoodItemRequestDTO request) {
+
+        FoodItem food = new FoodItem();
+        food.setName(request.name());
+        food.setCategory(request.category());
+        food.setPrice(request.price());
+
+        return mapToDTO(repository.save(food));
     }
 
     @Override
-    public FoodItem updateFood(Long id, FoodItem food) {
-        FoodItem existingFood = foodItemRepository.findById(id)
-                .orElseThrow(()-> new FoodNotFoundException("Food not found"));
+    public FoodItemResponseDTO updateFood(Long id,
+                                          FoodItemRequestDTO request) {
 
-        existingFood.setName(food.getName());
-        existingFood.setCategory(food.getCategory());
-        existingFood.setPrice(food.getPrice());
-        existingFood.setAvailable(food.isAvailable());
+        FoodItem food = repository.findById(id)
+                .orElseThrow(() ->
+                        new FoodNotFoundException("Food not found"));
 
-        return foodItemRepository.save(existingFood);
+        food.setName(request.name());
+        food.setCategory(request.category());
+        food.setPrice(request.price());
+
+        return mapToDTO(repository.save(food));
     }
 
     @Override
     public void deleteFood(Long id) {
-        if(!foodItemRepository.existsById(id)){
+
+        if (!repository.existsById(id)) {
             throw new FoodNotFoundException("Food not found");
         }
-        foodItemRepository.deleteById(id);
+
+        repository.deleteById(id);
     }
 
     @Override
-    public List<FoodItem> getAllFood() {
-        return foodItemRepository.findAll();
+    public Page<FoodItemResponseDTO> getMenu(int page, int size) {
+
+        return repository.findAll(PageRequest.of(page, size))
+                .map(this::mapToDTO);
     }
 
-    @Override
-    public List<FoodItem> getAvailableFood() {
-        return foodItemRepository.findByAvailableTrue();
+    private FoodItemResponseDTO mapToDTO(FoodItem food) {
+
+        return new FoodItemResponseDTO(
+                food.getId(),
+                food.getName(),
+                food.getCategory(),
+                food.getPrice(),
+                food.isAvailable()
+        );
     }
 }

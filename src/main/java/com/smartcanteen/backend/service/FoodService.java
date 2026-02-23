@@ -1,17 +1,18 @@
 package com.smartcanteen.backend.service;
 
+import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
+import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.entity.FoodItem;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
 public interface FoodService {
-    FoodItem createFood(FoodItem food);
+    FoodItemResponseDTO createFood(FoodItemRequestDTO food);
 
-    FoodItem updateFood(Long id,FoodItem food);
+    FoodItemResponseDTO updateFood(Long id,FoodItemRequestDTO food);
 
     void deleteFood(Long id);
 
-    List<FoodItem> getAllFood();
-
-    List<FoodItem> getAvailableFood();
+    Page<FoodItemResponseDTO> getMenu(int page,int size);
 }
