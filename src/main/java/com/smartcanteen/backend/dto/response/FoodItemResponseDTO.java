@@ -1,25 +1,13 @@
 package com.smartcanteen.backend.dto.response;
 
-public class FoodItemResponseDTO {
-    private final Long id;
-    private final String name;
-    private final double price;
+import com.smartcanteen.backend.entity.Category;
 
-    public FoodItemResponseDTO(Long id,String name,double price){
-        this.id=id;
-        this.name=name;
-        this.price=price;
-    }
+import java.math.BigDecimal;
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public double getPrice() {
-        return price;
-    }
-}
+public record FoodItemResponseDTO(
+        Long id,
+        String name,
+        Category category,
+        BigDecimal price,
+        boolean available
+) {}

@@ -1,50 +1,48 @@
 package com.smartcanteen.backend.controller;
 
-import com.smartcanteen.backend.entity.FoodItem;
+import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
+import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.service.FoodService;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.PublicKey;
-import java.util.List;
-
 @RestController
-@RequestMapping("/food")
+@RequestMapping("/menu")
 public class FoodController {
-    private final FoodService foodService;
 
-    public FoodController(FoodService foodService){
-        this.foodService=foodService;
+    private final FoodService service;
+
+    public FoodController(FoodService service) {
+        this.service = service;
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public FoodItem createFood(@RequestBody FoodItem food){
-        return foodService.createFood(food);
+    public FoodItemResponseDTO createFood(
+            @RequestBody FoodItemRequestDTO request) {
+        return service.createFood(request);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public FoodItem updateFood(@PathVariable Long id,@RequestBody FoodItem food){
-        return foodService.updateFood(id,food);
+    public FoodItemResponseDTO updateFood(
+            @PathVariable Long id,
+            @RequestBody FoodItemRequestDTO request) {
+        return service.updateFood(id, request);
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public String deleteFood(@PathVariable Long id){
-        foodService.deleteFood(id);
-        return "Food deleted successfully";
+    public void deleteFood(@PathVariable Long id) {
+        service.deleteFood(id);
     }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public List<FoodItem> getAllFood(){
-        return foodService.getAllFood();
-    }
-
-    @GetMapping("/available")
-    @PreAuthorize("hasAnyRole('ADMIN','USER')")
-    public List<FoodItem> getAvailableFood(){
-        return foodService.getAvailableFood();
+    public Page<FoodItemResponseDTO> getMenu(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return service.getMenu(page, size);
     }
 }

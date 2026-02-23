@@ -1,72 +1,56 @@
 package com.smartcanteen.backend.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 public class FoodItem {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
 
-    private String category;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Category category;
 
-    private double price;
+    @Column(nullable = false)
+    private BigDecimal price;
 
-    private boolean available;
+    private boolean available = true;
 
-    public FoodItem() {
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public FoodItem() {}
+
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
     }
 
-    public FoodItem(Long id, String name, String category, double price, boolean available) {
-        this.id = id;
-        this.name = name;
-        this.category = category;
-        this.price = price;
-        this.available = available;
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 
-    public Long getId() {
-        return id;
-    }
+    // Getters
+    public Long getId() { return id; }
+    public String getName() { return name; }
+    public Category getCategory() { return category; }
+    public BigDecimal getPrice() { return price; }
+    public boolean isAvailable() { return available; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public double getPrice() {
-        return price;
-    }
-
-    public void setPrice(double price) {
-        this.price = price;
-    }
-
-    public boolean isAvailable() {
-        return available;
-    }
-
-    public void setAvailable(boolean available) {
-        this.available = available;
-    }
+    // Setters
+    public void setName(String name) { this.name = name; }
+    public void setCategory(Category category) { this.category = category; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    public void setAvailable(boolean available) { this.available = available; }
 }
