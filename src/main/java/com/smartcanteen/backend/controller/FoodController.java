@@ -2,10 +2,13 @@ package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
 import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
+import com.smartcanteen.backend.entity.Category;
 import com.smartcanteen.backend.service.FoodService;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.security.PublicKey;
 
 @RestController
 @RequestMapping("/menu")
@@ -42,7 +45,18 @@ public class FoodController {
     @PreAuthorize("hasAnyRole('ADMIN','USER')")
     public Page<FoodItemResponseDTO> getMenu(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return service.getMenu(page, size);
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "asc") String direction,
+            @RequestParam(required = false) Category category,
+            @RequestParam(required = false) Boolean available,
+            @RequestParam(required = false) String search) {
+        return service.getMenu(page, size,sortBy,direction,category,available,search);
+    }
+
+    @PatchMapping("/{id}/toggle")
+    @PreAuthorize("hasRole('ADMIN','MANAGER')")
+    public FoodItemResponseDTO toggleAvailability(@PathVariable Long id){
+        return service.toggleAvailability(id);
     }
 }

@@ -2,6 +2,7 @@ package com.smartcanteen.backend.service;
 
 import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
 import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
+import com.smartcanteen.backend.entity.Category;
 import com.smartcanteen.backend.entity.FoodItem;
 import org.springframework.data.domain.Page;
 
@@ -14,5 +15,14 @@ public interface FoodService {
 
     void deleteFood(Long id);
 
-    Page<FoodItemResponseDTO> getMenu(int page,int size);
+    Page<FoodItemResponseDTO> getMenu(
+            int page,
+            int size,
+            String sortBy,
+            String direction,
+            Category category,
+            Boolean available,
+            String search);
+
+    public FoodItemResponseDTO toggleAvailability(Long id);
 }
