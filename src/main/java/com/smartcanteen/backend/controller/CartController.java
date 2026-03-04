@@ -1,6 +1,7 @@
 package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.request.AddToCartRequestDTO;
+import com.smartcanteen.backend.dto.response.CartResponseDTO;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.repository.UserRepository;
@@ -9,10 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.security.PublicKey;
 
@@ -33,4 +31,14 @@ public class CartController {
 
         return "Item added to cart successfully";
     }
+
+    @GetMapping
+    @PreAuthorize("hasRole('USER')")
+    public CartResponseDTO getCart(@AuthenticationPrincipal UserDetails userDetails){
+        User user= userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(()-> new UserNotFoundException("User not found"));
+
+        return  cartService.getCart(user);
+    }
+
 }
