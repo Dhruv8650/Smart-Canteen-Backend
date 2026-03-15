@@ -10,4 +10,6 @@ public interface CartService {
     public CartResponseDTO getCart(User user);
 
     void removeItem(Long cartItemId,User user);
+
+    void updateQuantity(Long cartItemId,Integer quantity,User user);
 }

@@ -113,4 +113,24 @@ public class CartServiceImpl implements CartService {
         cartItemRepository.delete(cartItem);
     }
 
+    @Override
+    @Transactional
+    public void updateQuantity(Long cartItemId,Integer quantity,User user){
+        if(quantity==null || quantity<=0){
+            throw new IllegalArgumentException("Quantity must be greater than 0");
+        }
+
+        Cart cart = cartRepository.findByUser(user)
+                .orElseThrow(() -> new CartNotFoundException("Cart not found"));
+
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new CartItemNotFoundException("Cart item not found"));
+
+        if (!cartItem.getCart().getId().equals(cart.getId())) {
+            throw new RuntimeException("Unauthorized action");
+        }
+
+        cartItem.setQuantity(quantity);
+    }
+
 }

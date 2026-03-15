@@ -1,6 +1,7 @@
 package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.request.AddToCartRequestDTO;
+import com.smartcanteen.backend.dto.request.UpdateCartItemRequestDTO;
 import com.smartcanteen.backend.dto.response.CartResponseDTO;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.exception.UserNotFoundException;
@@ -50,5 +51,21 @@ public class CartController {
         cartService.removeItem(cartItemId,user);
 
         return "Item removed form cart";
+    }
+
+    @PutMapping("/item/{cartItemId}")
+    @PreAuthorize("hasRole('USER')")
+    public String updateQuantity(
+            @PathVariable Long cartItemId,
+            @RequestBody UpdateCartItemRequestDTO request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        cartService.updateQuantity(cartItemId, request.quantity(), user);
+
+        return "Cart item quantity updated";
     }
 }
