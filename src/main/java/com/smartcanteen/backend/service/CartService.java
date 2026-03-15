@@ -12,4 +12,6 @@ public interface CartService {
     void removeItem(Long cartItemId,User user);
 
     void updateQuantity(Long cartItemId,Integer quantity,User user);
+
+    void checkout(User user);
 }

@@ -3,10 +3,7 @@ package com.smartcanteen.backend.service.impl;
 import com.smartcanteen.backend.dto.request.AddToCartRequestDTO;
 import com.smartcanteen.backend.dto.response.CartItemResponseDTO;
 import com.smartcanteen.backend.dto.response.CartResponseDTO;
-import com.smartcanteen.backend.entity.Cart;
-import com.smartcanteen.backend.entity.CartItem;
-import com.smartcanteen.backend.entity.FoodItem;
-import com.smartcanteen.backend.entity.User;
+import com.smartcanteen.backend.entity.*;
 import com.smartcanteen.backend.exception.CartItemNotFoundException;
 import com.smartcanteen.backend.exception.CartNotFoundException;
 import com.smartcanteen.backend.exception.FoodNotFoundException;
@@ -14,8 +11,10 @@ import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.repository.CartItemRepository;
 import com.smartcanteen.backend.repository.CartRepository;
 import com.smartcanteen.backend.repository.FoodItemRepository;
+import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.service.CartService;
 import lombok.RequiredArgsConstructor;
+import org.aspectj.weaver.ast.Or;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +28,7 @@ public class CartServiceImpl implements CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final FoodItemRepository foodItemRepository;
+    private final OrderRepository orderRepository;
 
     @Transactional
     @Override
@@ -133,4 +133,48 @@ public class CartServiceImpl implements CartService {
         cartItem.setQuantity(quantity);
     }
 
+    @Override
+    @Transactional
+    public void checkout(User user) {
+
+        Cart cart = cartRepository.findByUser(user)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        if (cart.getCartItems().isEmpty()) {
+            throw new RuntimeException("Cart is empty");
+        }
+
+        Order order = new Order();
+        order.setUser(user);
+        order.setStatus(OrderStatus.PENDING);
+
+        List<OrderItem> orderItems = cart.getCartItems()
+                .stream()
+                .map(cartItem -> {
+
+                    OrderItem orderItem = new OrderItem();
+                    orderItem.setOrder(order);
+                    orderItem.setFoodItem(cartItem.getFoodItem());
+                    orderItem.setQuantity(cartItem.getQuantity());
+
+                    return orderItem;
+
+                })
+                .toList();
+
+        order.setOrderItems(orderItems);
+
+        BigDecimal total = cart.getCartItems()
+                .stream()
+                .map(item -> item.getFoodItem()
+                        .getPrice()
+                        .multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        order.setTotalAmount(total);
+
+        orderRepository.save(order);
+
+        cart.getCartItems().clear();
+    }
 }

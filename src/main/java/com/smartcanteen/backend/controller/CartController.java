@@ -68,4 +68,18 @@ public class CartController {
 
         return "Cart item quantity updated";
     }
+
+    @PostMapping("/checkout")
+    @PreAuthorize("hasRole('USER')")
+    public String checkout(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        cartService.checkout(user);
+
+        return "Order placed successfully";
+    }
 }
