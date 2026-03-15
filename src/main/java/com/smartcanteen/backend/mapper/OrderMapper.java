@@ -4,6 +4,7 @@ import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.Order;
+import com.smartcanteen.backend.entity.OrderItem;
 
 import java.util.List;
 
@@ -19,24 +20,23 @@ public class OrderMapper {
                 order.getUser().getRole()
         );
 
-        // Map Food Items
-        List<FoodItemResponseDTO> foodDTOs = order.getFoodItems()
+        // Map Order Items → Food DTOs
+        List<FoodItemResponseDTO> foodDTOs = order.getOrderItems()
                 .stream()
-                .map(food -> new FoodItemResponseDTO(
-                        food.getId(),
-                        food.getName(),
-                        food.getCategory(),
-                        food.getPrice(),
-                        food.isAvailable()
+                .map(orderItem -> new FoodItemResponseDTO(
+                        orderItem.getFoodItem().getId(),
+                        orderItem.getFoodItem().getName(),
+                        orderItem.getFoodItem().getCategory(),
+                        orderItem.getFoodItem().getPrice(),
+                        orderItem.getFoodItem().isAvailable()
                 ))
                 .toList();
 
-        // Return final OrderResponseDTO
         return new OrderResponseDTO(
                 order.getId(),
                 userDTO,
                 foodDTOs,
-                order.getTotalAmount(),   // BigDecimal
+                order.getTotalAmount(),
                 order.getStatus().name(),
                 order.getCreatedAt()
         );

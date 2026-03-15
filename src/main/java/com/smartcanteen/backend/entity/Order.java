@@ -19,14 +19,12 @@ public class Order {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Many orders can have many food items
-    @ManyToMany
-    @JoinTable(
-            name = "order_food_items",
-            joinColumns = @JoinColumn(name = "order_id"),
-            inverseJoinColumns = @JoinColumn(name = "food_item_id")
+    @OneToMany(
+            mappedBy = "order",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
     )
-    private List<FoodItem> foodItems;
+    private List<OrderItem> orderItems;
 
     @Column(nullable = false)
     private BigDecimal totalAmount;
@@ -55,10 +53,6 @@ public class Order {
         return user;
     }
 
-    public List<FoodItem> getFoodItems() {
-        return foodItems;
-    }
-
     public BigDecimal getTotalAmount() {
         return totalAmount;
     }
@@ -71,12 +65,12 @@ public class Order {
         return createdAt;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public List<OrderItem> getOrderItems() {
+        return orderItems;
     }
 
-    public void setFoodItems(List<FoodItem> foodItems) {
-        this.foodItems = foodItems;
+    public void setUser(User user) {
+        this.user = user;
     }
 
     public void setTotalAmount(BigDecimal totalAmount) {
@@ -85,5 +79,9 @@ public class Order {
 
     public void setStatus(OrderStatus status) {
         this.status = status;
+    }
+
+    public void setOrderItems(List<OrderItem> orderItems) {
+        this.orderItems = orderItems;
     }
 }

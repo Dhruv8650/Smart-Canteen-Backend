@@ -2,10 +2,7 @@ package com.smartcanteen.backend.service.impl;
 
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
-import com.smartcanteen.backend.entity.FoodItem;
-import com.smartcanteen.backend.entity.Order;
-import com.smartcanteen.backend.entity.OrderStatus;
-import com.smartcanteen.backend.entity.User;
+import com.smartcanteen.backend.entity.*;
 import com.smartcanteen.backend.exception.OrderNotFoundException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.mapper.OrderMapper;
@@ -35,27 +32,47 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
 
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        List<FoodItem> foodItems =
-                foodItemRepository.findAllById(request.getFoodItemIds());
-
-        if (foodItems.isEmpty()) {
-            throw new IllegalArgumentException("No valid food items selected");
+        if (request.getFoodItemIds().isEmpty()) {
+            throw new IllegalArgumentException("No food items selected");
         }
-
-        BigDecimal total = foodItems.stream()
-                .map(FoodItem::getPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Order order = new Order();
         order.setUser(user);
-        order.setFoodItems(foodItems);
-        order.setTotalAmount(total);
         order.setStatus(OrderStatus.PENDING);
+
+        List<OrderItem> orderItems = request.getFoodItemIds()
+                .stream()
+                .map(foodId -> {
+
+                    FoodItem food = foodItemRepository.findById(foodId)
+                            .orElseThrow(() ->
+                                    new RuntimeException("Food item not found with id: " + foodId));
+
+                    OrderItem orderItem = new OrderItem();
+                    orderItem.setFoodItem(food);
+                    orderItem.setQuantity(1); // default quantity when ordering directly
+                    orderItem.setOrder(order);
+
+                    return orderItem;
+
+                })
+                .toList();
+
+        order.setOrderItems(orderItems);
+
+        BigDecimal total = orderItems.stream()
+                .map(item -> item.getFoodItem()
+                        .getPrice()
+                        .multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        order.setTotalAmount(total);
 
         Order saved = orderRepository.save(order);
 
