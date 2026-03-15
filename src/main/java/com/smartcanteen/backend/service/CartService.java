@@ -8,4 +8,6 @@ public interface CartService {
     void addToCart(AddToCartRequestDTO request, User user);
 
     public CartResponseDTO getCart(User user);
+
+    void removeItem(Long cartItemId,User user);
 }

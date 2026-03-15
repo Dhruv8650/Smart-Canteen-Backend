@@ -7,6 +7,7 @@ import com.smartcanteen.backend.entity.Cart;
 import com.smartcanteen.backend.entity.CartItem;
 import com.smartcanteen.backend.entity.FoodItem;
 import com.smartcanteen.backend.entity.User;
+import com.smartcanteen.backend.exception.CartItemNotFoundException;
 import com.smartcanteen.backend.exception.CartNotFoundException;
 import com.smartcanteen.backend.exception.FoodNotFoundException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
@@ -95,6 +96,21 @@ public class CartServiceImpl implements CartService {
                 .reduce(BigDecimal.ZERO,BigDecimal::add);
 
         return new CartResponseDTO(items,total);
+    }
+
+    @Override
+    @Transactional
+    public void removeItem(Long cartItemId,User user){
+        Cart cart=cartRepository.findByUser(user)
+                .orElseThrow(() -> new CartNotFoundException("Cart not found"));
+
+        CartItem cartItem=cartItemRepository.findById(cartItemId)
+                .orElseThrow(() -> new CartItemNotFoundException("Cart item not found"));
+
+        if(!cartItem.getCart().getId().equals(cart.getId())){
+            throw new RuntimeException("Unauthorized action");
+        }
+        cartItemRepository.delete(cartItem);
     }
 
 }

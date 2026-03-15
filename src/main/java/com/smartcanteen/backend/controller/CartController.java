@@ -41,4 +41,14 @@ public class CartController {
         return  cartService.getCart(user);
     }
 
+    @DeleteMapping("/item/{cartItemId}")
+    @PreAuthorize("hasRole('USER')")
+    public String removeItem(@PathVariable Long cartItemId,@AuthenticationPrincipal UserDetails userDetails){
+        User user=userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        cartService.removeItem(cartItemId,user);
+
+        return "Item removed form cart";
+    }
 }
