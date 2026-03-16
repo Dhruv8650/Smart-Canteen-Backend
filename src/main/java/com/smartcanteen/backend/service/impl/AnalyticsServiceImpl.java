@@ -15,7 +15,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AnalyticsServiceImpl implements AnalyticsService {
 
-    OrderRepository orderRepository;
+    private final OrderRepository orderRepository;
 
     @Override
     public List<DailyRevenueDTO> getDailyRevenue() {

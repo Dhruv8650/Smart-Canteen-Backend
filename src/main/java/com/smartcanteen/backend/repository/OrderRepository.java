@@ -19,14 +19,14 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
 
     @Query("""
        SELECT new com.smartcanteen.backend.dto.response.analytics.DailyRevenueDTO(
-            DATE(o.createdAt),
+            o.createdAt,
             SUM(o.totalAmount)
        )
        FROM Order o
-       WHERE o.status = 'COMPLETED'
-       GROUP BY DATE(o.createdAt)
-       ORDER BY DATE(o.createdAt)
-       """)
+       WHERE o.status = com.smartcanteen.backend.entity.OrderStatus.COMPLETED
+       GROUP BY o.createdAt
+       ORDER BY o.createdAt
+    """)
     List<DailyRevenueDTO> getDailyRevenue();
 
     @Query("""
@@ -53,11 +53,11 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
 
     @Query("""
        SELECT new com.smartcanteen.backend.dto.response.analytics.CategorySalesDTO(
-            oi.foodItem.category,
+            oi.foodItem.foodCategory,
             SUM(oi.quantity)
        )
        FROM OrderItem oi
-       GROUP BY oi.foodItem.category
+       GROUP BY oi.foodItem.foodCategory
        """)
     List<CategorySalesDTO> getCategorySales();
 }
