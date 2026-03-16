@@ -15,30 +15,38 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/analytics")
-@RequiredArgsConstructor
-public class AnalyticsController {
-    AnalyticsService analyticsService;
 
-    @PreAuthorize("hasRole('ADMIN')")
+public class AnalyticsController {
+    private final AnalyticsService analyticsService;
+
+    public AnalyticsController(AnalyticsService analyticsService) {
+        this.analyticsService = analyticsService;
+    }
+
+
     @GetMapping("/revenue/daily")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<DailyRevenueDTO> getDailyRevenue() {
         return analyticsService.getDailyRevenue();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+
     @GetMapping("/orders/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<OrderStatusCountDTO> getOrderStatusCounts() {
         return analyticsService.getOrderStatusCounts();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+
     @GetMapping("/top-items")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<TopItemDTO> getTopSellingItems() {
         return analyticsService.getTopSellingItems();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+
     @GetMapping("/category-sales")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<CategorySalesDTO> getCategorySales() {
         return analyticsService.getCategorySales();
     }
