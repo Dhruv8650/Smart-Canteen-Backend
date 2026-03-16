@@ -1,6 +1,6 @@
 package com.smartcanteen.backend.entity;
 
-public enum Category {
+public enum FoodCategory {
     MAIN,
     SNACK,
     BEVERAGE,

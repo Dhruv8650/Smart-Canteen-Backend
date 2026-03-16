@@ -1,11 +1,11 @@
 package com.smartcanteen.backend.dto.request;
 
-import com.smartcanteen.backend.entity.Category;
+import com.smartcanteen.backend.entity.FoodCategory;
 
 import java.math.BigDecimal;
 
 public record FoodItemRequestDTO(
         String name,
-        Category category,
+        FoodCategory foodCategory,
         BigDecimal price
 ){}

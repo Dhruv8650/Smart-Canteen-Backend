@@ -2,7 +2,7 @@ package com.smartcanteen.backend.service.impl;
 
 import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
 import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
-import com.smartcanteen.backend.entity.Category;
+import com.smartcanteen.backend.entity.FoodCategory;
 import com.smartcanteen.backend.entity.FoodItem;
 import com.smartcanteen.backend.exception.FoodNotFoundException;
 import com.smartcanteen.backend.repository.FoodItemRepository;
@@ -27,7 +27,7 @@ public class FoodServiceImpl implements FoodService {
 
         FoodItem food = new FoodItem();
         food.setName(request.name());
-        food.setCategory(request.category());
+        food.setCategory(request.foodCategory());
         food.setPrice(request.price());
 
         return mapToDTO(foodItemRepository.save(food));
@@ -42,7 +42,7 @@ public class FoodServiceImpl implements FoodService {
                         new FoodNotFoundException("Food not found"));
 
         food.setName(request.name());
-        food.setCategory(request.category());
+        food.setCategory(request.foodCategory());
         food.setPrice(request.price());
 
         return mapToDTO(foodItemRepository.save(food));
@@ -64,7 +64,7 @@ public class FoodServiceImpl implements FoodService {
             int size,
             String sortBy,
             String direction,
-            Category category,
+            FoodCategory foodCategory,
             Boolean available,
             String search) {
 
@@ -76,13 +76,13 @@ public class FoodServiceImpl implements FoodService {
 
         Page<FoodItem> foodPage;
 
-        // Priority: search -> category+available > category >available > all
+        // Priority: search -> foodCategory+available > foodCategory >available > all
         if (search != null && !search.isBlank()){
             foodPage  = foodItemRepository.findByNameContainingIgnoreCase(search,pageable);
-        } else if (category !=null && available != null) {
-            foodPage = foodItemRepository.findByCategoryAndAvailable(category,available,pageable);
-        } else if (category != null) {
-            foodPage = foodItemRepository.findByCategory(category,pageable);
+        } else if (foodCategory !=null && available != null) {
+            foodPage = foodItemRepository.findByCategoryAndAvailable(foodCategory,available,pageable);
+        } else if (foodCategory != null) {
+            foodPage = foodItemRepository.findByCategory(foodCategory,pageable);
         } else if (available != null){
             foodPage = foodItemRepository.findByAvailable(available,pageable);
         } else {

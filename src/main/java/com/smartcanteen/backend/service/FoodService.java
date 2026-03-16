@@ -2,11 +2,8 @@ package com.smartcanteen.backend.service;
 
 import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
 import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
-import com.smartcanteen.backend.entity.Category;
-import com.smartcanteen.backend.entity.FoodItem;
+import com.smartcanteen.backend.entity.FoodCategory;
 import org.springframework.data.domain.Page;
-
-import java.util.List;
 
 public interface FoodService {
     FoodItemResponseDTO createFood(FoodItemRequestDTO food);
@@ -20,7 +17,7 @@ public interface FoodService {
             int size,
             String sortBy,
             String direction,
-            Category category,
+            FoodCategory foodCategory,
             Boolean available,
             String search);
 

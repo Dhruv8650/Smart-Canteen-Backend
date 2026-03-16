@@ -2,13 +2,11 @@ package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
 import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
-import com.smartcanteen.backend.entity.Category;
+import com.smartcanteen.backend.entity.FoodCategory;
 import com.smartcanteen.backend.service.FoodService;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.security.PublicKey;
 
 @RestController
 @RequestMapping("/menu")
@@ -48,10 +46,10 @@ public class FoodController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String direction,
-            @RequestParam(required = false) Category category,
+            @RequestParam(required = false) FoodCategory foodCategory,
             @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) String search) {
-        return service.getMenu(page, size,sortBy,direction,category,available,search);
+        return service.getMenu(page, size,sortBy,direction, foodCategory,available,search);
     }
 
     @PatchMapping("/{id}/toggle")

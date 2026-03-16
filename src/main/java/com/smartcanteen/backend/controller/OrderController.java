@@ -34,7 +34,7 @@ public class OrderController {
     }
 
     // USER SEE OWN ORDERS
-    @GetMapping("/my")
+    @GetMapping("/my-orders")
     @PreAuthorize("hasRole('USER')")
     public List<OrderResponseDTO> getMyOrders(Authentication authentication){
         String email=authentication.getName();

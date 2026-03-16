@@ -16,7 +16,7 @@ public class FoodItem {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Category category;
+    private FoodCategory foodCategory;
 
     @Column(nullable = false)
     private BigDecimal price;
@@ -42,7 +42,7 @@ public class FoodItem {
     // Getters
     public Long getId() { return id; }
     public String getName() { return name; }
-    public Category getCategory() { return category; }
+    public FoodCategory getCategory() { return foodCategory; }
     public BigDecimal getPrice() { return price; }
     public boolean isAvailable() { return available; }
     public LocalDateTime getCreatedAt() { return createdAt; }
@@ -50,7 +50,7 @@ public class FoodItem {
 
     // Setters
     public void setName(String name) { this.name = name; }
-    public void setCategory(Category category) { this.category = category; }
+    public void setCategory(FoodCategory foodCategory) { this.foodCategory = foodCategory; }
     public void setPrice(BigDecimal price) { this.price = price; }
     public void setAvailable(boolean available) { this.available = available; }
 }
