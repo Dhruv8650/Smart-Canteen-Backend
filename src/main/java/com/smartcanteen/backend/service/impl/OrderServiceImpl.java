@@ -2,6 +2,7 @@ package com.smartcanteen.backend.service.impl;
 
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.dto.websocket.OrderCreatedEvent;
 import com.smartcanteen.backend.entity.*;
 import com.smartcanteen.backend.exception.OrderNotFoundException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
@@ -10,6 +11,7 @@ import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.OrderService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,13 +24,16 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final FoodItemRepository foodItemRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             UserRepository userRepository,
-                            FoodItemRepository foodItemRepository) {
+                            FoodItemRepository foodItemRepository,
+                            ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.foodItemRepository = foodItemRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -56,7 +61,7 @@ public class OrderServiceImpl implements OrderService {
 
                     OrderItem orderItem = new OrderItem();
                     orderItem.setFoodItem(food);
-                    orderItem.setQuantity(1); // default quantity when ordering directly
+                    orderItem.setQuantity(1);
                     orderItem.setOrder(order);
 
                     return orderItem;
@@ -76,7 +81,12 @@ public class OrderServiceImpl implements OrderService {
 
         Order saved = orderRepository.save(order);
 
-        return OrderMapper.toDTO(saved);
+        OrderResponseDTO response = OrderMapper.toDTO(saved);
+
+        // 🔥 EVENT TRIGGER
+        eventPublisher.publishEvent(new OrderCreatedEvent(response));
+
+        return response;
     }
 
     @Override
@@ -120,7 +130,12 @@ public class OrderServiceImpl implements OrderService {
 
         order.setStatus(newStatus);
 
-        return OrderMapper.toDTO(order);
+        OrderResponseDTO response = OrderMapper.toDTO(order);
+
+        // 🔥 EVENT TRIGGER
+        eventPublisher.publishEvent(new OrderCreatedEvent(response));
+
+        return response;
     }
 
     private void validateStatusTransition(OrderStatus current,
