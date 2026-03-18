@@ -7,12 +7,11 @@ import com.smartcanteen.backend.entity.FoodItem;
 import com.smartcanteen.backend.exception.FoodNotFoundException;
 import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.service.FoodService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class FoodServiceImpl implements FoodService {
 
@@ -25,37 +24,56 @@ public class FoodServiceImpl implements FoodService {
     @Override
     public FoodItemResponseDTO createFood(FoodItemRequestDTO request) {
 
+        log.info("Creating new food item: {}", request.name());
+
         FoodItem food = new FoodItem();
         food.setName(request.name());
         food.setCategory(request.foodCategory());
         food.setPrice(request.price());
 
-        return mapToDTO(foodItemRepository.save(food));
+        FoodItem saved = foodItemRepository.save(food);
+
+        log.info("Food item created with ID: {}", saved.getId());
+
+        return mapToDTO(saved);
     }
 
     @Override
     public FoodItemResponseDTO updateFood(Long id,
                                           FoodItemRequestDTO request) {
 
+        log.info("Updating food item with ID: {}", id);
+
         FoodItem food = foodItemRepository.findById(id)
-                .orElseThrow(() ->
-                        new FoodNotFoundException("Food not found"));
+                .orElseThrow(() -> {
+                    log.error("Food not found with ID: {}", id);
+                    return new FoodNotFoundException("Food not found");
+                });
 
         food.setName(request.name());
         food.setCategory(request.foodCategory());
         food.setPrice(request.price());
 
-        return mapToDTO(foodItemRepository.save(food));
+        FoodItem updated = foodItemRepository.save(food);
+
+        log.info("Food item updated successfully: {}", id);
+
+        return mapToDTO(updated);
     }
 
     @Override
     public void deleteFood(Long id) {
 
+        log.info("Deleting food item with ID: {}", id);
+
         if (!foodItemRepository.existsById(id)) {
+            log.error("Food not found for deletion: {}", id);
             throw new FoodNotFoundException("Food not found");
         }
 
         foodItemRepository.deleteById(id);
+
+        log.info("Food item deleted successfully: {}", id);
     }
 
     @Override
@@ -68,28 +86,61 @@ public class FoodServiceImpl implements FoodService {
             Boolean available,
             String search) {
 
-        Sort sort=direction.equalsIgnoreCase("desc")
-                ?Sort.by(sortBy).descending()
-                :Sort.by(sortBy).ascending();
+        log.info("Fetching menu | page={}, size={}, sortBy={}, direction={}, category={}, available={}, search={}",
+                page, size, sortBy, direction, foodCategory, available, search);
 
-        Pageable pageable=PageRequest.of(page,size,sort);
+        Sort sort = direction.equalsIgnoreCase("desc")
+                ? Sort.by(sortBy).descending()
+                : Sort.by(sortBy).ascending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
 
         Page<FoodItem> foodPage;
 
-        // Priority: search -> foodCategory+available > foodCategory >available > all
-        if (search != null && !search.isBlank()){
-            foodPage  = foodItemRepository.findByNameContainingIgnoreCase(search,pageable);
-        } else if (foodCategory !=null && available != null) {
-            foodPage = foodItemRepository.findByCategoryAndAvailable(foodCategory,available,pageable);
+        if (search != null && !search.isBlank()) {
+            log.info("Applying search filter: {}", search);
+            foodPage = foodItemRepository.findByNameContainingIgnoreCase(search, pageable);
+
+        } else if (foodCategory != null && available != null) {
+            log.info("Filtering by category={} and available={}", foodCategory, available);
+            foodPage = foodItemRepository.findByCategoryAndAvailable(foodCategory, available, pageable);
+
         } else if (foodCategory != null) {
-            foodPage = foodItemRepository.findByCategory(foodCategory,pageable);
-        } else if (available != null){
-            foodPage = foodItemRepository.findByAvailable(available,pageable);
+            log.info("Filtering by category={}", foodCategory);
+            foodPage = foodItemRepository.findByCategory(foodCategory, pageable);
+
+        } else if (available != null) {
+            log.info("Filtering by availability={}", available);
+            foodPage = foodItemRepository.findByAvailable(available, pageable);
+
         } else {
+            log.info("Fetching all menu items");
             foodPage = foodItemRepository.findAll(pageable);
         }
 
+        log.info("Menu fetched successfully with {} items", foodPage.getTotalElements());
+
         return foodPage.map(this::mapToDTO);
+    }
+
+    @Override
+    public FoodItemResponseDTO toggleAvailability(Long id){
+
+        log.info("Toggling availability for food ID: {}", id);
+
+        FoodItem food = foodItemRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.error("Food not found for toggle: {}", id);
+                    return new FoodNotFoundException("Food not found");
+                });
+
+        food.setAvailable(!food.isAvailable());
+
+        FoodItem updated = foodItemRepository.save(food);
+
+        log.info("Food availability toggled. New status: {}", updated.isAvailable());
+
+        return mapToDTO(updated);
     }
 
     private FoodItemResponseDTO mapToDTO(FoodItem food) {
@@ -101,14 +152,5 @@ public class FoodServiceImpl implements FoodService {
                 food.getPrice(),
                 food.isAvailable()
         );
-    }
-
-    @Override
-    public FoodItemResponseDTO toggleAvailability(Long id){
-        FoodItem food= foodItemRepository.findById(id)
-                .orElseThrow(() -> new FoodNotFoundException("Food not found"));
-
-        food.setAvailable(!food.isAvailable());
-        return mapToDTO(foodItemRepository.save(food));
     }
 }

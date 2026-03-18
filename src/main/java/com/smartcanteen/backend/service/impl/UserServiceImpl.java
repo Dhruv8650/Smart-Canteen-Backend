@@ -12,9 +12,11 @@ import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.JwtService;
 import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -26,7 +28,10 @@ public class UserServiceImpl implements UserService {
     @Override
     public User registerUser(RegisterRequestDTO request) {
 
+        log.info("Registering user with email: {}", request.getEmail());
+
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            log.warn("Registration failed - email already exists: {}", request.getEmail());
             throw new EmailAlreadyExistException("Email already exists");
         }
 
@@ -37,21 +42,32 @@ public class UserServiceImpl implements UserService {
                 .role(Role.USER)
                 .build();
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        log.info("User registered successfully with ID: {}", savedUser.getId());
+
+        return savedUser;
     }
 
     @Override
     public AuthResponseDTO login(String email, String password) {
 
+        log.info("Login attempt for email: {}", email);
+
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
+                .orElseThrow(() -> {
+                    log.error("Login failed - user not found: {}", email);
+                    return new UserNotFoundException("User not found");
+                });
 
         if (!passwordEncoder.matches(password, user.getPassword())) {
+            log.warn("Login failed - invalid credentials for email: {}", email);
             throw new InvalidCredentialsException("Invalid credentials");
         }
 
-        // 🔥 Updated for new JwtService
         String token = jwtService.generateToken(user.getEmail());
+
+        log.info("JWT token generated for user: {}", email);
 
         UserResponseDTO userDTO = new UserResponseDTO(
                 user.getId(),
@@ -60,13 +76,18 @@ public class UserServiceImpl implements UserService {
                 user.getRole()
         );
 
+        log.info("Login successful for user: {}", email);
+
         return new AuthResponseDTO(token, userDTO);
     }
 
     @Override
     public User createManager(String name, String email, String password) {
 
+        log.info("Creating manager with email: {}", email);
+
         if (userRepository.findByEmail(email).isPresent()) {
+            log.warn("Manager creation failed - email exists: {}", email);
             throw new EmailAlreadyExistException("Email already exists");
         }
 
@@ -77,6 +98,10 @@ public class UserServiceImpl implements UserService {
                 .role(Role.MANAGER)
                 .build();
 
-        return userRepository.save(manager);
+        User savedManager = userRepository.save(manager);
+
+        log.info("Manager created successfully with ID: {}", savedManager.getId());
+
+        return savedManager;
     }
 }

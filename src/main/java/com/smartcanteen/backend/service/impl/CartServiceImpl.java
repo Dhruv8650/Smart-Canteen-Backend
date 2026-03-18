@@ -16,6 +16,7 @@ import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.service.CartService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl implements CartService {
@@ -36,19 +38,28 @@ public class CartServiceImpl implements CartService {
     @Transactional
     @Override
     public void addToCart(AddToCartRequestDTO request, User user) {
+
+        log.info("User {} adding item {} to cart", user.getEmail(), request.foodItemId());
+
         if (request.quantity() == null || request.quantity() <= 0) {
+            log.warn("Invalid quantity: {}", request.quantity());
             throw new IllegalArgumentException("Quantity must be greater than 0");
         }
 
         FoodItem foodItem = foodItemRepository.findById(request.foodItemId())
-                .orElseThrow(() -> new FoodNotFoundException("Food item not found"));
+                .orElseThrow(() -> {
+                    log.error("Food item not found: {}", request.foodItemId());
+                    return new FoodNotFoundException("Food item not found");
+                });
 
         if (!foodItem.isAvailable()) {
+            log.warn("Food item not available: {}", foodItem.getId());
             throw new IllegalArgumentException("Food Item is not available");
         }
 
         Cart cart = cartRepository.findByUser(user)
                 .orElseGet(() -> {
+                    log.info("Creating new cart for user: {}", user.getEmail());
                     Cart newCart = new Cart();
                     newCart.setUser(user);
                     return cartRepository.save(newCart);
@@ -61,8 +72,10 @@ public class CartServiceImpl implements CartService {
                 .orElse(null);
 
         if (cartItem != null) {
+            log.info("Updating quantity for foodId {}", foodItem.getId());
             cartItem.setQuantity(cartItem.getQuantity() + request.quantity());
         } else {
+            log.info("Adding new item to cart: foodId {}", foodItem.getId());
             CartItem newItem = new CartItem();
             newItem.setFoodItem(foodItem);
             newItem.setQuantity(request.quantity());
@@ -70,12 +83,20 @@ public class CartServiceImpl implements CartService {
             cart.addItem(newItem);
             cartRepository.save(cart);
         }
+
+        log.info("Cart updated successfully for user: {}", user.getEmail());
     }
 
     @Override
     public CartResponseDTO getCart(User user) {
+
+        log.info("Fetching cart for user: {}", user.getEmail());
+
         Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() -> new CartNotFoundException("Cart not found"));
+                .orElseThrow(() -> {
+                    log.error("Cart not found for user: {}", user.getEmail());
+                    return new CartNotFoundException("Cart not found");
+                });
 
         List<CartItemResponseDTO> items = cart.getCartItems()
                 .stream()
@@ -98,53 +119,86 @@ public class CartServiceImpl implements CartService {
                 .map(CartItemResponseDTO::subtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        log.info("Cart fetched successfully with {} items", items.size());
+
         return new CartResponseDTO(items, total);
     }
 
     @Override
     @Transactional
     public void removeItem(Long cartItemId, User user) {
+
+        log.info("Removing cart item {} for user {}", cartItemId, user.getEmail());
+
         Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() -> new CartNotFoundException("Cart not found"));
+                .orElseThrow(() -> {
+                    log.error("Cart not found for user: {}", user.getEmail());
+                    return new CartNotFoundException("Cart not found");
+                });
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
-                .orElseThrow(() -> new CartItemNotFoundException("Cart item not found"));
+                .orElseThrow(() -> {
+                    log.error("Cart item not found: {}", cartItemId);
+                    return new CartItemNotFoundException("Cart item not found");
+                });
 
         if (!cartItem.getCart().getId().equals(cart.getId())) {
+            log.error("Unauthorized cart item access: {}", cartItemId);
             throw new RuntimeException("Unauthorized action");
         }
 
         cartItemRepository.delete(cartItem);
+
+        log.info("Cart item removed successfully: {}", cartItemId);
     }
 
     @Override
     @Transactional
     public void updateQuantity(Long cartItemId, Integer quantity, User user) {
+
+        log.info("Updating quantity for cartItem {} to {}", cartItemId, quantity);
+
         if (quantity == null || quantity <= 0) {
+            log.warn("Invalid quantity: {}", quantity);
             throw new IllegalArgumentException("Quantity must be greater than 0");
         }
 
         Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() -> new CartNotFoundException("Cart not found"));
+                .orElseThrow(() -> {
+                    log.error("Cart not found for user: {}", user.getEmail());
+                    return new CartNotFoundException("Cart not found");
+                });
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
-                .orElseThrow(() -> new CartItemNotFoundException("Cart item not found"));
+                .orElseThrow(() -> {
+                    log.error("Cart item not found: {}", cartItemId);
+                    return new CartItemNotFoundException("Cart item not found");
+                });
 
         if (!cartItem.getCart().getId().equals(cart.getId())) {
+            log.error("Unauthorized quantity update attempt: {}", cartItemId);
             throw new RuntimeException("Unauthorized action");
         }
 
         cartItem.setQuantity(quantity);
+
+        log.info("Cart item quantity updated successfully: {}", cartItemId);
     }
 
     @Override
     @Transactional
     public void checkout(User user) {
 
+        log.info("Checkout started for user: {}", user.getEmail());
+
         Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseThrow(() -> {
+                    log.error("Cart not found for user: {}", user.getEmail());
+                    return new RuntimeException("Cart not found");
+                });
 
         if (cart.getCartItems().isEmpty()) {
+            log.warn("Cart is empty for user: {}", user.getEmail());
             throw new RuntimeException("Cart is empty");
         }
 
@@ -174,15 +228,19 @@ public class CartServiceImpl implements CartService {
 
         order.setTotalAmount(total);
 
+        log.info("Order total calculated: {}", total);
+
         Order savedOrder = orderRepository.save(order);
 
-        // CONVERT TO DTO
+        log.info("Order created successfully with ID: {}", savedOrder.getId());
+
         OrderResponseDTO response = OrderMapper.toDTO(savedOrder);
 
-        // PUBLISH EVENT
+        log.info("Publishing order created event for orderId: {}", savedOrder.getId());
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
-        // CLEAR CART
         cart.getCartItems().clear();
+
+        log.info("Cart cleared after checkout for user: {}", user.getEmail());
     }
 }

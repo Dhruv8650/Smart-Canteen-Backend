@@ -7,10 +7,12 @@ import com.smartcanteen.backend.dto.response.analytics.TopItemDTO;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.service.AnalyticsService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AnalyticsServiceImpl implements AnalyticsService {
@@ -19,21 +21,49 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public List<DailyRevenueDTO> getDailyRevenue() {
-        return orderRepository.getDailyRevenue();
+
+        log.info("Fetching daily revenue analytics");
+
+        List<DailyRevenueDTO> data = orderRepository.getDailyRevenue();
+
+        log.info("Daily revenue records fetched: {}", data.size());
+
+        return data;
     }
 
     @Override
     public List<OrderStatusCountDTO> getOrderStatusCounts() {
-        return orderRepository.getOrderStatusCounts();
+
+        log.info("Fetching order status counts");
+
+        List<OrderStatusCountDTO> data = orderRepository.getOrderStatusCounts();
+
+        log.info("Order status count records fetched: {}", data.size());
+
+        return data;
     }
 
     @Override
     public List<TopItemDTO> getTopSellingItems() {
-        return orderRepository.getTopSellingItems();
+
+        log.info("Fetching top selling items");
+
+        List<TopItemDTO> data = orderRepository.getTopSellingItems();
+
+        log.info("Top selling items fetched: {}", data.size());
+
+        return data;
     }
 
     @Override
     public List<CategorySalesDTO> getCategorySales() {
-        return orderRepository.getCategorySales();
+
+        log.info("Fetching category sales analytics");
+
+        List<CategorySalesDTO> data = orderRepository.getCategorySales();
+
+        log.info("Category sales records fetched: {}", data.size());
+
+        return data;
     }
 }

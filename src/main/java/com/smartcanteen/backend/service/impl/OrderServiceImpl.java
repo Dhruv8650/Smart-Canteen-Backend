@@ -11,6 +11,7 @@ import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.OrderService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 
+@Slf4j
 @Service
 public class OrderServiceImpl implements OrderService {
 
@@ -40,10 +42,16 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
 
+        log.info("Placing order for user: {}", userEmail);
+
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
+                .orElseThrow(() -> {
+                    log.error("User not found: {}", userEmail);
+                    return new UserNotFoundException("User not found");
+                });
 
         if (request.getFoodItemIds().isEmpty()) {
+            log.warn("Empty food item list for user: {}", userEmail);
             throw new IllegalArgumentException("No food items selected");
         }
 
@@ -51,13 +59,19 @@ public class OrderServiceImpl implements OrderService {
         order.setUser(user);
         order.setStatus(OrderStatus.PENDING);
 
+        log.info("Creating order object for user: {}", userEmail);
+
         List<OrderItem> orderItems = request.getFoodItemIds()
                 .stream()
                 .map(foodId -> {
 
                     FoodItem food = foodItemRepository.findById(foodId)
-                            .orElseThrow(() ->
-                                    new RuntimeException("Food item not found with id: " + foodId));
+                            .orElseThrow(() -> {
+                                log.error("Food item not found: {}", foodId);
+                                return new RuntimeException("Food item not found with id: " + foodId);
+                            });
+
+                    log.info("Adding food item {} to order", foodId);
 
                     OrderItem orderItem = new OrderItem();
                     orderItem.setFoodItem(food);
@@ -79,11 +93,16 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(total);
 
+        log.info("Total order amount calculated: {}", total);
+
         Order saved = orderRepository.save(order);
+
+        log.info("Order saved successfully with ID: {}", saved.getId());
 
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
-        // 🔥 EVENT TRIGGER
+        //  EVENT TRIGGER
+        log.info("Publishing order created event for orderId: {}", saved.getId());
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         return response;
@@ -92,29 +111,52 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<OrderResponseDTO> getUserOrder(String userEmail) {
 
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        log.info("Fetching orders for user: {}", userEmail);
 
-        return orderRepository.findByUser(user)
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> {
+                    log.error("User not found while fetching orders: {}", userEmail);
+                    return new UserNotFoundException("User not found");
+                });
+
+        List<OrderResponseDTO> orders = orderRepository.findByUser(user)
                 .stream()
                 .map(OrderMapper::toDTO)
                 .toList();
+
+        log.info("Found {} orders for user {}", orders.size(), userEmail);
+
+        return orders;
     }
 
     @Override
     public List<OrderResponseDTO> getAllOrders() {
-        return orderRepository.findAll()
+
+        log.info("Fetching all orders");
+
+        List<OrderResponseDTO> orders = orderRepository.findAll()
                 .stream()
                 .map(OrderMapper::toDTO)
                 .toList();
+
+        log.info("Total orders fetched: {}", orders.size());
+
+        return orders;
     }
 
     @Override
     public List<OrderResponseDTO> getPendingOrders() {
-        return orderRepository.findByStatus(OrderStatus.PENDING)
+
+        log.info("Fetching pending orders");
+
+        List<OrderResponseDTO> orders = orderRepository.findByStatus(OrderStatus.PENDING)
                 .stream()
                 .map(OrderMapper::toDTO)
                 .toList();
+
+        log.info("Pending orders count: {}", orders.size());
+
+        return orders;
     }
 
     @Transactional
@@ -122,17 +164,24 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponseDTO updateOrderStatus(Long orderId,
                                               OrderStatus newStatus) {
 
+        log.info("Updating order {} to status {}", orderId, newStatus);
+
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new OrderNotFoundException("Order not found with id: " + orderId));
+                .orElseThrow(() -> {
+                    log.error("Order not found: {}", orderId);
+                    return new OrderNotFoundException("Order not found with id: " + orderId);
+                });
 
         validateStatusTransition(order.getStatus(), newStatus);
 
         order.setStatus(newStatus);
 
+        log.info("Order {} status updated to {}", orderId, newStatus);
+
         OrderResponseDTO response = OrderMapper.toDTO(order);
 
-        // 🔥 EVENT TRIGGER
+        //  EVENT TRIGGER
+        log.info("Publishing order status update event for orderId: {}", orderId);
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         return response;
@@ -141,33 +190,37 @@ public class OrderServiceImpl implements OrderService {
     private void validateStatusTransition(OrderStatus current,
                                           OrderStatus next) {
 
+        log.info("Validating status transition from {} to {}", current, next);
+
         switch (current) {
 
             case PENDING -> {
                 if (next != OrderStatus.PREPARING &&
                         next != OrderStatus.CANCELLED) {
-                    throw new IllegalStateException(
-                            "Invalid transition from PENDING");
+                    log.warn("Invalid transition from PENDING to {}", next);
+                    throw new IllegalStateException("Invalid transition from PENDING");
                 }
             }
 
             case PREPARING -> {
                 if (next != OrderStatus.READY &&
                         next != OrderStatus.CANCELLED) {
-                    throw new IllegalStateException(
-                            "Invalid transition from PREPARING");
+                    log.warn("Invalid transition from PREPARING to {}", next);
+                    throw new IllegalStateException("Invalid transition from PREPARING");
                 }
             }
 
             case READY -> {
                 if (next != OrderStatus.COMPLETED) {
-                    throw new IllegalStateException(
-                            "Invalid transition from READY");
+                    log.warn("Invalid transition from READY to {}", next);
+                    throw new IllegalStateException("Invalid transition from READY");
                 }
             }
 
-            default -> throw new IllegalStateException(
-                    "Order cannot be modified in current state");
+            default -> {
+                log.error("Invalid order state: {}", current);
+                throw new IllegalStateException("Order cannot be modified in current state");
+            }
         }
     }
 }
