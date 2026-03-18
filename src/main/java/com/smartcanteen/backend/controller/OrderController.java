@@ -1,17 +1,15 @@
 package com.smartcanteen.backend.controller;
 
+import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
-import com.smartcanteen.backend.entity.FoodItem;
-import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.service.OrderService;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-
-import java.security.PublicKey;
 import java.util.List;
 
 @RestController
@@ -21,30 +19,61 @@ public class OrderController {
     private final OrderService orderService;
 
     public OrderController(OrderService orderService){
-        this.orderService=orderService;
+        this.orderService = orderService;
     }
 
     // USER PLACES ORDER
     @PostMapping
     @PreAuthorize("hasRole('USER')")
-    public OrderResponseDTO placeOrder(@Valid @RequestBody OrderRequestDTO request, Authentication authentication){
-        String email=authentication.getName();
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> placeOrder(
+            @Valid @RequestBody OrderRequestDTO request,
+            Authentication authentication) {
 
-        return orderService.placeOrder(request,authentication.getName());
+        String email = authentication.getName();
+
+        OrderResponseDTO order = orderService.placeOrder(request, email);
+
+        ApiResponse<OrderResponseDTO> response = ApiResponse.<OrderResponseDTO>builder()
+                .success(true)
+                .message("Order placed successfully")
+                .data(order)
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
     // USER SEE OWN ORDERS
     @GetMapping("/my-orders")
     @PreAuthorize("hasRole('USER')")
-    public List<OrderResponseDTO> getMyOrders(Authentication authentication){
-        String email=authentication.getName();
-        return orderService.getUserOrder(authentication.getName());
+    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getMyOrders(
+            Authentication authentication) {
+
+        String email = authentication.getName();
+
+        List<OrderResponseDTO> orders = orderService.getUserOrder(email);
+
+        ApiResponse<List<OrderResponseDTO>> response = ApiResponse.<List<OrderResponseDTO>>builder()
+                .success(true)
+                .message("User orders fetched successfully")
+                .data(orders)
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 
-    // ADMIN SEE ALL USER
+    //  ADMIN SEE ALL ORDERS
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public List<OrderResponseDTO> getAllOrders(){
-        return orderService.getAllOrders();
+    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getAllOrders() {
+
+        List<OrderResponseDTO> orders = orderService.getAllOrders();
+
+        ApiResponse<List<OrderResponseDTO>> response = ApiResponse.<List<OrderResponseDTO>>builder()
+                .success(true)
+                .message("All orders fetched successfully")
+                .data(orders)
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 }
