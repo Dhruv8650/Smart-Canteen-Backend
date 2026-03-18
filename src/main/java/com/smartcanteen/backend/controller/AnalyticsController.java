@@ -1,53 +1,72 @@
 package com.smartcanteen.backend.controller;
 
-import com.smartcanteen.backend.dto.response.analytics.CategorySalesDTO;
-import com.smartcanteen.backend.dto.response.analytics.DailyRevenueDTO;
-import com.smartcanteen.backend.dto.response.analytics.OrderStatusCountDTO;
-import com.smartcanteen.backend.dto.response.analytics.TopItemDTO;
+import com.smartcanteen.backend.dto.common.ApiResponse;
+import com.smartcanteen.backend.dto.response.analytics.*;
 import com.smartcanteen.backend.service.AnalyticsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/analytics")
-
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class AnalyticsController {
+
     private final AnalyticsService analyticsService;
 
-    public AnalyticsController(AnalyticsService analyticsService) {
-        this.analyticsService = analyticsService;
-    }
-
-
+    // ✅ DAILY REVENUE
     @GetMapping("/revenue/daily")
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<DailyRevenueDTO> getDailyRevenue() {
-        return analyticsService.getDailyRevenue();
+    public ResponseEntity<ApiResponse<List<DailyRevenueDTO>>> getDailyRevenue() {
+
+        List<DailyRevenueDTO> data = analyticsService.getDailyRevenue();
+
+        return ResponseEntity.ok(ApiResponse.<List<DailyRevenueDTO>>builder()
+                .success(true)
+                .message("Daily revenue fetched successfully")
+                .data(data)
+                .build());
     }
 
-
+    // ✅ ORDER STATUS COUNT
     @GetMapping("/orders/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<OrderStatusCountDTO> getOrderStatusCounts() {
-        return analyticsService.getOrderStatusCounts();
+    public ResponseEntity<ApiResponse<List<OrderStatusCountDTO>>> getOrderStatusCounts() {
+
+        List<OrderStatusCountDTO> data = analyticsService.getOrderStatusCounts();
+
+        return ResponseEntity.ok(ApiResponse.<List<OrderStatusCountDTO>>builder()
+                .success(true)
+                .message("Order status count fetched successfully")
+                .data(data)
+                .build());
     }
 
-
+    // ✅ TOP ITEMS
     @GetMapping("/top-items")
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<TopItemDTO> getTopSellingItems() {
-        return analyticsService.getTopSellingItems();
+    public ResponseEntity<ApiResponse<List<TopItemDTO>>> getTopSellingItems() {
+
+        List<TopItemDTO> data = analyticsService.getTopSellingItems();
+
+        return ResponseEntity.ok(ApiResponse.<List<TopItemDTO>>builder()
+                .success(true)
+                .message("Top selling items fetched successfully")
+                .data(data)
+                .build());
     }
 
-
+    // ✅ CATEGORY SALES
     @GetMapping("/category-sales")
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<CategorySalesDTO> getCategorySales() {
-        return analyticsService.getCategorySales();
+    public ResponseEntity<ApiResponse<List<CategorySalesDTO>>> getCategorySales() {
+
+        List<CategorySalesDTO> data = analyticsService.getCategorySales();
+
+        return ResponseEntity.ok(ApiResponse.<List<CategorySalesDTO>>builder()
+                .success(true)
+                .message("Category sales fetched successfully")
+                .data(data)
+                .build());
     }
 }
