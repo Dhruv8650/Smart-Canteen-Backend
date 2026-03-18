@@ -1,4 +1,3 @@
-
 package com.smartcanteen.backend.security;
 
 import lombok.RequiredArgsConstructor;
@@ -30,18 +29,43 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
+                //  Disable CSRF (for REST APIs)
                 .csrf(csrf -> csrf.disable())
+
+                //  No session (JWT based)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+
+                //  Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/users/register", "/users/login","/ws-orders/**","/test/**").permitAll()
+
+                        //  Swagger (VERY IMPORTANT)
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
+                        //  Public APIs
+                        .requestMatchers(
+                                "/users/register",
+                                "/users/login",
+                                "/ws-orders/**",
+                                "/test/**"
+                        ).permitAll()
+
+                        //  Everything else secured
                         .anyRequest().authenticated()
                 )
+
+                //  Custom exception handling
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
                         .accessDeniedHandler(customAccessDeniedHandler)
                 )
+
+                //  JWT filter
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);
 
