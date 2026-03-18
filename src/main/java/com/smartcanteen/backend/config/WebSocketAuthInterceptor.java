@@ -1,5 +1,7 @@
 package com.smartcanteen.backend.config;
 
+import com.smartcanteen.backend.entity.User;
+import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
@@ -14,12 +16,14 @@ import org.springframework.stereotype.Component;
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
 
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
 
+        // 🔐 HANDLE CONNECT (already working)
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
 
             String authHeader = accessor.getFirstNativeHeader("Authorization");
@@ -32,7 +36,41 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
             String email = jwtService.extractEmail(token);
 
+            System.out.println("👤 CONNECT USER: " + email);
+
             accessor.setUser(() -> email);
+        }
+
+        //  HANDLE SUBSCRIBE (NEW SECURITY)
+        if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+
+            String destination = accessor.getDestination();
+            String email = accessor.getUser().getName();
+
+            System.out.println("📡 SUBSCRIBE REQUEST: " + destination + " by " + email);
+
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            //  ADMIN TOPIC PROTECTION
+            if (destination.equals("/topic/admin/orders")) {
+
+                if (user.getRole() != com.smartcanteen.backend.entity.Role.ADMIN &&
+                        user.getRole() != com.smartcanteen.backend.entity.Role.MANAGER) {
+
+                    throw new RuntimeException("Access denied: Not an admin/manager");
+                }
+            }
+
+            // USER-SPECIFIC TOPIC PROTECTION
+            if (destination.startsWith("/topic/user/")) {
+
+                Long requestedUserId = Long.parseLong(destination.split("/")[3]);
+
+                if (!user.getId().equals(requestedUserId)) {
+                    throw new RuntimeException("Access denied: Cannot subscribe to other user's data");
+                }
+            }
         }
 
         return message;
