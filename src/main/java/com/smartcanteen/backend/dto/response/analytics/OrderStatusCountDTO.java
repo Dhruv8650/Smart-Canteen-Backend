@@ -1,9 +1,12 @@
 package com.smartcanteen.backend.dto.response.analytics;
 
 import com.smartcanteen.backend.entity.OrderStatus;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-public record OrderStatusCountDTO(
-        OrderStatus status,
-        Long count
-) {
+@AllArgsConstructor
+@Data
+public class OrderStatusCountDTO{
+    OrderStatus status;
+    Long count;
 }

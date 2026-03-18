@@ -28,7 +28,7 @@ public class OrderWebSocketListener {
         );
 
         // Send to specific USER
-        Long userId = order.user().getId();
+        Long userId = order.getUser().getId();
 
         messagingTemplate.convertAndSend(
                 "/topic/user/" + userId,

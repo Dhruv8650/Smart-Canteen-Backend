@@ -1,7 +1,12 @@
 package com.smartcanteen.backend.dto.response.analytics;
 
-public record TopItemDTO(
-        Long foodItemId,
-        String name,
-        Long totalSold
-) {}
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public class TopItemDTO{
+    Long foodItemId;
+    String name;
+    Long totalSold;
+}

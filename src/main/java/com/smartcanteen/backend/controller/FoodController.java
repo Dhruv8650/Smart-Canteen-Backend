@@ -79,7 +79,7 @@ public class FoodController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
             @RequestParam(defaultValue = "asc") String direction,
-            @RequestParam(required = false) FoodCategory foodCategory,
+            @RequestParam(required = false) String foodCategory,
             @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) String search) {
 

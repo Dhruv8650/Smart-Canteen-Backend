@@ -1,8 +1,8 @@
 package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
+import com.smartcanteen.backend.dto.request.UpdateOrderStatusDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
-import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,9 +23,11 @@ public class ManagerController {
     @PutMapping("/{orderId}/status")
     public ResponseEntity<ApiResponse<OrderResponseDTO>> updateStatus(
             @PathVariable Long orderId,
-            @RequestBody OrderStatus status) {
+            @RequestBody UpdateOrderStatusDTO request) {
 
-        OrderResponseDTO order = orderService.updateOrderStatus(orderId, status);
+        //  FIX: use DTO properly
+        OrderResponseDTO order =
+                orderService.updateOrderStatus(orderId, request.getStatus());
 
         ApiResponse<OrderResponseDTO> response =
                 ApiResponse.<OrderResponseDTO>builder()

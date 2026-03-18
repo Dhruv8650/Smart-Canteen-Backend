@@ -24,12 +24,12 @@ public class FoodServiceImpl implements FoodService {
     @Override
     public FoodItemResponseDTO createFood(FoodItemRequestDTO request) {
 
-        log.info("Creating new food item: {}", request.name());
+        log.info("Creating new food item: {}", request.getName());
 
         FoodItem food = new FoodItem();
-        food.setName(request.name());
-        food.setCategory(request.foodCategory());
-        food.setPrice(request.price());
+        food.setName(request.getName());
+        food.setCategory(request.getFoodCategory());
+        food.setPrice(request.getPrice());
 
         FoodItem saved = foodItemRepository.save(food);
 
@@ -50,9 +50,9 @@ public class FoodServiceImpl implements FoodService {
                     return new FoodNotFoundException("Food not found");
                 });
 
-        food.setName(request.name());
-        food.setCategory(request.foodCategory());
-        food.setPrice(request.price());
+        food.setName(request.getName());
+        food.setCategory(request.getFoodCategory());
+        food.setPrice(request.getPrice());
 
         FoodItem updated = foodItemRepository.save(food);
 
@@ -82,9 +82,18 @@ public class FoodServiceImpl implements FoodService {
             int size,
             String sortBy,
             String direction,
-            FoodCategory foodCategory,
+            String foodCategory,
             Boolean available,
             String search) {
+        FoodCategory category = null;
+
+        if (foodCategory != null && !foodCategory.isBlank()) {
+            try {
+                category = FoodCategory.valueOf(foodCategory.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Invalid food category: " + foodCategory);
+            }
+        }
 
         log.info("Fetching menu | page={}, size={}, sortBy={}, direction={}, category={}, available={}, search={}",
                 page, size, sortBy, direction, foodCategory, available, search);
@@ -101,13 +110,13 @@ public class FoodServiceImpl implements FoodService {
             log.info("Applying search filter: {}", search);
             foodPage = foodItemRepository.findByNameContainingIgnoreCase(search, pageable);
 
-        } else if (foodCategory != null && available != null) {
-            log.info("Filtering by category={} and available={}", foodCategory, available);
-            foodPage = foodItemRepository.findByCategoryAndAvailable(foodCategory, available, pageable);
+        } else if (category != null && available != null) {
+            log.info("Filtering by category={} and available={}", category, available);
+            foodPage = foodItemRepository.findByCategoryAndAvailable(category, available, pageable);
 
-        } else if (foodCategory != null) {
-            log.info("Filtering by category={}", foodCategory);
-            foodPage = foodItemRepository.findByCategory(foodCategory, pageable);
+        } else if (category != null) {
+            log.info("Filtering by category={}", category);
+            foodPage = foodItemRepository.findByCategory(category, pageable);
 
         } else if (available != null) {
             log.info("Filtering by availability={}", available);

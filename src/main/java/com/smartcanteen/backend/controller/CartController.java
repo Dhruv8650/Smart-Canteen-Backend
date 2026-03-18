@@ -98,7 +98,7 @@ public class CartController {
 
         User user = getUser(userDetails);
 
-        cartService.updateQuantity(cartItemId, request.quantity(), user);
+        cartService.updateQuantity(cartItemId, request.getQuantity(), user);
 
         ApiResponse<Void> response = ApiResponse.<Void>builder()
                 .success(true)

@@ -17,7 +17,7 @@ public interface FoodService {
             int size,
             String sortBy,
             String direction,
-            FoodCategory foodCategory,
+            String foodCategory,
             Boolean available,
             String search);
 

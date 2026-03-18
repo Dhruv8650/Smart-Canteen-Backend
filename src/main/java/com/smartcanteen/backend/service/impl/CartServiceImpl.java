@@ -39,16 +39,16 @@ public class CartServiceImpl implements CartService {
     @Override
     public void addToCart(AddToCartRequestDTO request, User user) {
 
-        log.info("User {} adding item {} to cart", user.getEmail(), request.foodItemId());
+        log.info("User {} adding item {} to cart", user.getEmail(), request.getFoodItemId());
 
-        if (request.quantity() == null || request.quantity() <= 0) {
-            log.warn("Invalid quantity: {}", request.quantity());
+        if (request.getQuantity() == null || request.getQuantity() <= 0) {
+            log.warn("Invalid quantity: {}", request.getQuantity());
             throw new IllegalArgumentException("Quantity must be greater than 0");
         }
 
-        FoodItem foodItem = foodItemRepository.findById(request.foodItemId())
+        FoodItem foodItem = foodItemRepository.findById(request.getFoodItemId())
                 .orElseThrow(() -> {
-                    log.error("Food item not found: {}", request.foodItemId());
+                    log.error("Food item not found: {}", request.getFoodItemId());
                     return new FoodNotFoundException("Food item not found");
                 });
 
@@ -73,12 +73,12 @@ public class CartServiceImpl implements CartService {
 
         if (cartItem != null) {
             log.info("Updating quantity for foodId {}", foodItem.getId());
-            cartItem.setQuantity(cartItem.getQuantity() + request.quantity());
+            cartItem.setQuantity(cartItem.getQuantity() + request.getQuantity());
         } else {
             log.info("Adding new item to cart: foodId {}", foodItem.getId());
             CartItem newItem = new CartItem();
             newItem.setFoodItem(foodItem);
-            newItem.setQuantity(request.quantity());
+            newItem.setQuantity(request.getQuantity());
 
             cart.addItem(newItem);
             cartRepository.save(cart);
@@ -116,7 +116,7 @@ public class CartServiceImpl implements CartService {
                 .toList();
 
         BigDecimal total = items.stream()
-                .map(CartItemResponseDTO::subtotal)
+                .map(CartItemResponseDTO::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         log.info("Cart fetched successfully with {} items", items.size());
