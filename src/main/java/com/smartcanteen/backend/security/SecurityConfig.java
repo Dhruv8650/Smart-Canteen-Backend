@@ -55,6 +55,10 @@ public class SecurityConfig {
                                 "/test/**"
                         ).permitAll()
 
+                        // Health Endpoints
+                        .requestMatchers("/", "/auth/**").permitAll()
+
+
                         //  Everything else secured
                         .anyRequest().authenticated()
                 )
