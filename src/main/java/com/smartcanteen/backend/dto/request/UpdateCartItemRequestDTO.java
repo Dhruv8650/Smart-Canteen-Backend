@@ -2,9 +2,11 @@ package com.smartcanteen.backend.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@NoArgsConstructor
 @AllArgsConstructor
 @Data
 public class UpdateCartItemRequestDTO{
-    Integer quantity;
+    private Integer quantity;
 }
