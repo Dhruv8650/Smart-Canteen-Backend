@@ -1,5 +1,6 @@
 package com.smartcanteen.backend.service.impl;
 
+import com.smartcanteen.backend.dto.request.OrderItemRequestDTO;
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.websocket.OrderCreatedEvent;
@@ -15,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.HashMap;
+import java.util.Map;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -45,13 +48,9 @@ public class OrderServiceImpl implements OrderService {
         log.info("Placing order for user: {}", userEmail);
 
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> {
-                    log.error("User not found: {}", userEmail);
-                    return new UserNotFoundException("User not found");
-                });
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        if (request.getFoodItemIds().isEmpty()) {
-            log.warn("Empty food item list for user: {}", userEmail);
+        if (request.getItems().isEmpty()) {
             throw new IllegalArgumentException("No food items selected");
         }
 
@@ -59,32 +58,42 @@ public class OrderServiceImpl implements OrderService {
         order.setUser(user);
         order.setStatus(OrderStatus.PENDING);
 
-        log.info("Creating order object for user: {}", userEmail);
+        //  STEP 1: MERGE DUPLICATE ITEMS
+        Map<Long, Integer> mergedItems = new HashMap<>();
 
-        List<OrderItem> orderItems = request.getFoodItemIds()
+        for (OrderItemRequestDTO item : request.getItems()) {
+            mergedItems.merge(
+                    item.getFoodItemId(),
+                    item.getQuantity(),
+                    Integer::sum
+            );
+        }
+
+        //  STEP 2: CREATE ORDER ITEMS
+        List<OrderItem> orderItems = mergedItems.entrySet()
                 .stream()
-                .map(foodId -> {
+                .map(entry -> {
+
+                    Long foodId = entry.getKey();
+                    Integer quantity = entry.getValue();
 
                     FoodItem food = foodItemRepository.findById(foodId)
-                            .orElseThrow(() -> {
-                                log.error("Food item not found: {}", foodId);
-                                return new RuntimeException("Food item not found with id: " + foodId);
-                            });
-
-                    log.info("Adding food item {} to order", foodId);
+                            .orElseThrow(() -> new RuntimeException(
+                                    "Food item not found with id: " + foodId
+                            ));
 
                     OrderItem orderItem = new OrderItem();
                     orderItem.setFoodItem(food);
-                    orderItem.setQuantity(1);
+                    orderItem.setQuantity(quantity); //  merged quantity
                     orderItem.setOrder(order);
 
                     return orderItem;
-
                 })
                 .toList();
 
         order.setOrderItems(orderItems);
 
+        //  STEP 3: TOTAL CALCULATION
         BigDecimal total = orderItems.stream()
                 .map(item -> item.getFoodItem()
                         .getPrice()
@@ -93,16 +102,10 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(total);
 
-        log.info("Total order amount calculated: {}", total);
-
         Order saved = orderRepository.save(order);
-
-        log.info("Order saved successfully with ID: {}", saved.getId());
 
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
-        //  EVENT TRIGGER
-        log.info("Publishing order created event for orderId: {}", saved.getId());
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         return response;
