@@ -199,7 +199,7 @@ public class CartServiceImpl implements CartService {
 
         if (cart.getCartItems().isEmpty()) {
             log.warn("Cart is empty for user: {}", user.getEmail());
-            throw new RuntimeException("Cart is empty");
+            throw new IllegalStateException("Cart is empty");
         }
 
         Order order = new Order();
@@ -240,6 +240,7 @@ public class CartServiceImpl implements CartService {
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         cart.getCartItems().clear();
+        cartRepository.save(cart);
 
         log.info("Cart cleared after checkout for user: {}", user.getEmail());
     }
