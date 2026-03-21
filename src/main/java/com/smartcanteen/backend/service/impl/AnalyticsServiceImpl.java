@@ -1,9 +1,6 @@
 package com.smartcanteen.backend.service.impl;
 
-import com.smartcanteen.backend.dto.response.analytics.CategorySalesDTO;
-import com.smartcanteen.backend.dto.response.analytics.DailyRevenueDTO;
-import com.smartcanteen.backend.dto.response.analytics.OrderStatusCountDTO;
-import com.smartcanteen.backend.dto.response.analytics.TopItemDTO;
+import com.smartcanteen.backend.dto.response.analytics.*;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.service.AnalyticsService;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +24,30 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         List<DailyRevenueDTO> data = orderRepository.getDailyRevenue();
 
         log.info("Daily revenue records fetched: {}", data.size());
+
+        return data;
+    }
+
+    @Override
+    public List<WeeklyRevenueDTO> getWeeklyRevenue() {
+
+        log.info("Fetching weekly revenue analytics");
+
+        List<WeeklyRevenueDTO> data = orderRepository.getWeeklyRevenue();
+
+        log.info("Weekly revenue records fetched: {}", data.size());
+
+        return data;
+    }
+
+    @Override
+    public List<MonthlyRevenueDTO> getMonthlyRevenue() {
+
+        log.info("Fetching monthly revenue analytics");
+
+        List<MonthlyRevenueDTO> data = orderRepository.getMonthlyRevenue();
+
+        log.info("Monthly revenue records fetched: {}", data.size());
 
         return data;
     }

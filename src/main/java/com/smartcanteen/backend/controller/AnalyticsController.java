@@ -13,12 +13,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/analytics")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('ADMIN')") // applies to all methods
 public class AnalyticsController {
 
     private final AnalyticsService analyticsService;
 
-    // ✅ DAILY REVENUE
+    //  DAILY REVENUE
     @GetMapping("/revenue/daily")
     public ResponseEntity<ApiResponse<List<DailyRevenueDTO>>> getDailyRevenue() {
 
@@ -31,7 +31,33 @@ public class AnalyticsController {
                 .build());
     }
 
-    // ✅ ORDER STATUS COUNT
+    //  WEEKLY REVENUE
+    @GetMapping("/revenue/weekly")
+    public ResponseEntity<ApiResponse<List<WeeklyRevenueDTO>>> getWeeklyRevenue() {
+
+        List<WeeklyRevenueDTO> data = analyticsService.getWeeklyRevenue();
+
+        return ResponseEntity.ok(ApiResponse.<List<WeeklyRevenueDTO>>builder()
+                .success(true)
+                .message("Weekly revenue fetched successfully")
+                .data(data)
+                .build());
+    }
+
+    //  MONTHLY REVENUE
+    @GetMapping("/revenue/monthly")
+    public ResponseEntity<ApiResponse<List<MonthlyRevenueDTO>>> getMonthlyRevenue() {
+
+        List<MonthlyRevenueDTO> data = analyticsService.getMonthlyRevenue();
+
+        return ResponseEntity.ok(ApiResponse.<List<MonthlyRevenueDTO>>builder()
+                .success(true)
+                .message("Monthly revenue fetched successfully")
+                .data(data)
+                .build());
+    }
+
+    //  ORDER STATUS COUNT
     @GetMapping("/orders/status")
     public ResponseEntity<ApiResponse<List<OrderStatusCountDTO>>> getOrderStatusCounts() {
 
@@ -44,7 +70,7 @@ public class AnalyticsController {
                 .build());
     }
 
-    // ✅ TOP ITEMS
+    //  TOP ITEMS
     @GetMapping("/top-items")
     public ResponseEntity<ApiResponse<List<TopItemDTO>>> getTopSellingItems() {
 
@@ -57,7 +83,7 @@ public class AnalyticsController {
                 .build());
     }
 
-    // ✅ CATEGORY SALES
+    //  CATEGORY SALES
     @GetMapping("/category-sales")
     public ResponseEntity<ApiResponse<List<CategorySalesDTO>>> getCategorySales() {
 

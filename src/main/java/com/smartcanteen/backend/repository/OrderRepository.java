@@ -1,9 +1,6 @@
 package com.smartcanteen.backend.repository;
 
-import com.smartcanteen.backend.dto.response.analytics.CategorySalesDTO;
-import com.smartcanteen.backend.dto.response.analytics.DailyRevenueDTO;
-import com.smartcanteen.backend.dto.response.analytics.OrderStatusCountDTO;
-import com.smartcanteen.backend.dto.response.analytics.TopItemDTO;
+import com.smartcanteen.backend.dto.response.analytics.*;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.entity.User;
@@ -28,6 +25,30 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
        ORDER BY o.createdAt
     """)
     List<DailyRevenueDTO> getDailyRevenue();
+
+    @Query("""
+    SELECT new com.smartcanteen.backend.dto.response.analytics.WeeklyRevenueDTO(
+        FUNCTION('DATE_TRUNC', 'week', o.createdAt),
+        SUM(o.totalAmount)
+    )
+    FROM Order o
+    WHERE o.status = com.smartcanteen.backend.entity.OrderStatus.COMPLETED
+    GROUP BY FUNCTION('DATE_TRUNC', 'week', o.createdAt)
+    ORDER BY FUNCTION('DATE_TRUNC', 'week', o.createdAt)
+""")
+    List<WeeklyRevenueDTO> getWeeklyRevenue();
+
+    @Query("""
+    SELECT new com.smartcanteen.backend.dto.response.analytics.MonthlyRevenueDTO(
+        FUNCTION('DATE_TRUNC', 'month', o.createdAt),
+        SUM(o.totalAmount)
+    )
+    FROM Order o
+    WHERE o.status = com.smartcanteen.backend.entity.OrderStatus.COMPLETED
+    GROUP BY FUNCTION('DATE_TRUNC', 'month', o.createdAt)
+    ORDER BY FUNCTION('DATE_TRUNC', 'month', o.createdAt)
+""")
+    List<MonthlyRevenueDTO> getMonthlyRevenue();
 
     @Query("""
        SELECT new com.smartcanteen.backend.dto.response.analytics.OrderStatusCountDTO(
