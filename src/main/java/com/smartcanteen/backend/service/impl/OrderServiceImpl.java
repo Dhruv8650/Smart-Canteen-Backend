@@ -5,6 +5,7 @@ import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.websocket.OrderCreatedEvent;
 import com.smartcanteen.backend.entity.*;
+import com.smartcanteen.backend.events.OrderStatusUpdatedEvent;
 import com.smartcanteen.backend.exception.OrderNotFoundException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.mapper.OrderMapper;
@@ -185,7 +186,7 @@ public class OrderServiceImpl implements OrderService {
 
         //  EVENT TRIGGER
         log.info("Publishing order status update event for orderId: {}", orderId);
-        eventPublisher.publishEvent(new OrderCreatedEvent(response));
+        eventPublisher.publishEvent(new  OrderStatusUpdatedEvent(response));
 
         return response;
     }

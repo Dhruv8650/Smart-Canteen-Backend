@@ -4,6 +4,7 @@ import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.UpdateOrderStatusDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.service.OrderService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,12 +21,11 @@ public class ManagerController {
     private final OrderService orderService;
 
     //  UPDATE ORDER STATUS
-    @PutMapping("/{orderId}/status")
+    @PutMapping("/{orderId}")
     public ResponseEntity<ApiResponse<OrderResponseDTO>> updateStatus(
             @PathVariable Long orderId,
-            @RequestBody UpdateOrderStatusDTO request) {
+            @RequestBody @Valid UpdateOrderStatusDTO request) {
 
-        //  FIX: use DTO properly
         OrderResponseDTO order =
                 orderService.updateOrderStatus(orderId, request.getStatus());
 

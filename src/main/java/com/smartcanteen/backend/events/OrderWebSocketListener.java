@@ -16,7 +16,7 @@ public class OrderWebSocketListener {
     @EventListener
     public void handleOrderEvent(OrderCreatedEvent event) {
 
-        System.out.println("🔥 Sending WebSocket update...");
+        System.out.println(" Sending WebSocket update...");
 
         //  Extract order from events
         OrderResponseDTO order = event.getOrder();
