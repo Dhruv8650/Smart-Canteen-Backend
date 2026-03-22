@@ -13,21 +13,30 @@ public class OrderWebSocketListener {
 
     private final SimpMessagingTemplate messagingTemplate;
 
+    //  ORDER CREATED EVENT
     @EventListener
-    public void handleOrderEvent(OrderCreatedEvent event) {
+    public void handleOrderCreatedEvent(OrderCreatedEvent event) {
+        sendOrderUpdate(event.getOrder());
+    }
+
+    //  NEW — ORDER STATUS UPDATED EVENT
+    @EventListener
+    public void handleOrderStatusUpdatedEvent(OrderStatusUpdatedEvent event) {
+        sendOrderUpdate(event.getOrder());
+    }
+
+    //  COMMON METHOD (BEST PRACTICE)
+    private void sendOrderUpdate(OrderResponseDTO order) {
 
         System.out.println(" Sending WebSocket update...");
 
-        //  Extract order from events
-        OrderResponseDTO order = event.getOrder();
-
-        // Send to ADMIN dashboard
+        //  ADMIN / MANAGER dashboard
         messagingTemplate.convertAndSend(
                 "/topic/admin/orders",
                 order
         );
 
-        // Send to specific USER
+        //  USER specific updates
         Long userId = order.getUser().getId();
 
         messagingTemplate.convertAndSend(
