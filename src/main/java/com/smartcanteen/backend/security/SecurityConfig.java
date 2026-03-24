@@ -21,27 +21,32 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
+    //  Password Encoder
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    //  MAIN SECURITY CONFIG
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                //  Disable CSRF (for REST APIs)
+                //  Enable CORS (will use WebConfig)
+                .cors(cors -> {})
+
+                //  Disable CSRF (JWT-based API)
                 .csrf(csrf -> csrf.disable())
 
-                //  No session (JWT based)
+                //  Stateless session
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                //  Authorization rules
+                //  Authorization Rules
                 .authorizeHttpRequests(auth -> auth
 
-                        //  Swagger (VERY IMPORTANT)
+                        //  Swagger
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
@@ -56,17 +61,17 @@ public class SecurityConfig {
                                 "/test/**"
                         ).permitAll()
 
-                        .requestMatchers(HttpMethod.GET,"/menu").permitAll()
+                        //  Public Menu
+                        .requestMatchers(HttpMethod.GET, "/menu").permitAll()
 
-                        // Health Endpoints
+                        //  Health / root
                         .requestMatchers("/", "/auth/**").permitAll()
 
-
-                        //  Everything else secured
+                        //  All other endpoints require auth
                         .anyRequest().authenticated()
                 )
 
-                //  Custom exception handling
+                //  Exception handling
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
                         .accessDeniedHandler(customAccessDeniedHandler)
