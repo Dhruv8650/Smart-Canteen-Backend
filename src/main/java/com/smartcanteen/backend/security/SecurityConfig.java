@@ -46,28 +46,32 @@ public class SecurityConfig {
                 //  Authorization Rules
                 .authorizeHttpRequests(auth -> auth
 
-                        //  Swagger
+                        // Swagger
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                        //  Public APIs
+                        // Public APIs
                         .requestMatchers(
                                 "/users/register",
                                 "/users/login",
+                                "/ws-orders",
                                 "/ws-orders/**",
                                 "/test/**"
                         ).permitAll()
 
-                        //  Public Menu
+                        // Public Menu
                         .requestMatchers(HttpMethod.GET, "/menu").permitAll()
 
-                        //  Health / root
-                        .requestMatchers("/", "/auth/**").permitAll()
+                        // Health (FIX FOR UPTIME ROBOT)
+                        .requestMatchers(
+                                "/",
+                                "/health",
+                                "/actuator/health"
+                        ).permitAll()
 
-                        //  All other endpoints require auth
                         .anyRequest().authenticated()
                 )
 
