@@ -2,17 +2,29 @@ package com.smartcanteen.backend.security;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 
 public class SecurityUtils {
-    // USER Specific
+
+    //  EMAIL FETCH
     public static String getCurrentUserEmail() {
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return null; // 🔥 IMPORTANT
+        }
+
         return auth.getName();
     }
-    // ADMIN Specific
+
+    //  ADMIN CHECK
     public static boolean isAdmin() {
+
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return false;
+        }
 
         return auth.getAuthorities()
                 .stream()

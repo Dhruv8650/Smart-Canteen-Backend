@@ -154,29 +154,23 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Fetching order by ID: {}", orderId);
 
-        //  Fetch Order
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> {
-                    log.error("Order not found with ID: {}", orderId);
-                    return new OrderNotFoundException("Order not found with id: " + orderId);
-                });
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
 
-        //  Get logged-in user info
         String currentUserEmail = SecurityUtils.getCurrentUserEmail();
         boolean isAdmin = SecurityUtils.isAdmin();
 
-        //  Authorization Logic
+        //  CHECK
+        if (currentUserEmail == null && !isAdmin) {
+            throw new RuntimeException("User not authenticated");
+        }
+
+        //  ROLE + OWNERSHIP CHECK
         if (!isAdmin && !order.getUser().getEmail().equals(currentUserEmail)) {
-            log.error("Unauthorized access attempt for orderId: {}", orderId);
             throw new RuntimeException("Access denied");
         }
 
-        //  Convert to DTO
-        OrderResponseDTO response = OrderMapper.toDTO(order);
-
-        log.info("Order fetched successfully for ID: {}", orderId);
-
-        return response;
+        return OrderMapper.toDTO(order);
     }
 
     @Override
