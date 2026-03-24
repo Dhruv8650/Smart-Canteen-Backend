@@ -154,18 +154,19 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Fetching order by ID: {}", orderId);
 
-        //  Fetch Order entity
+        //  Fetch Order
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> {
                     log.error("Order not found with ID: {}", orderId);
                     return new OrderNotFoundException("Order not found with id: " + orderId);
                 });
 
-        //  Get logged-in user email
+        //  Get logged-in user info
         String currentUserEmail = SecurityUtils.getCurrentUserEmail();
+        boolean isAdmin = SecurityUtils.isAdmin();
 
-        //  Authorization check
-        if (!order.getUser().getEmail().equals(currentUserEmail)) {
+        //  Authorization Logic
+        if (!isAdmin && !order.getUser().getEmail().equals(currentUserEmail)) {
             log.error("Unauthorized access attempt for orderId: {}", orderId);
             throw new RuntimeException("Access denied");
         }
