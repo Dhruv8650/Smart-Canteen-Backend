@@ -12,6 +12,7 @@ import com.smartcanteen.backend.mapper.OrderMapper;
 import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.repository.UserRepository;
+import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -146,6 +147,35 @@ public class OrderServiceImpl implements OrderService {
         log.info("Total orders fetched: {}", orders.size());
 
         return orders;
+    }
+
+    @Override
+    public OrderResponseDTO getOrderById(Long orderId) {
+
+        log.info("Fetching order by ID: {}", orderId);
+
+        //  Fetch Order entity
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> {
+                    log.error("Order not found with ID: {}", orderId);
+                    return new OrderNotFoundException("Order not found with id: " + orderId);
+                });
+
+        //  Get logged-in user email
+        String currentUserEmail = SecurityUtils.getCurrentUserEmail();
+
+        //  Authorization check
+        if (!order.getUser().getEmail().equals(currentUserEmail)) {
+            log.error("Unauthorized access attempt for orderId: {}", orderId);
+            throw new RuntimeException("Access denied");
+        }
+
+        //  Convert to DTO
+        OrderResponseDTO response = OrderMapper.toDTO(order);
+
+        log.info("Order fetched successfully for ID: {}", orderId);
+
+        return response;
     }
 
     @Override

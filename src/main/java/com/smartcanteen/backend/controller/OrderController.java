@@ -60,6 +60,20 @@ public class OrderController {
 
         return ResponseEntity.ok(response);
     }
+    @GetMapping("/{orderId}")
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> getOrderById(
+            @PathVariable Long orderId) {
+
+        OrderResponseDTO order = orderService.getOrderById(orderId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<OrderResponseDTO>builder()
+                        .success(true)
+                        .message("Order fetched successfully")
+                        .data(order)
+                        .build()
+        );
+    }
 
     //  ADMIN SEE ALL ORDERS
     @GetMapping
