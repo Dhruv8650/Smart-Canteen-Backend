@@ -7,13 +7,29 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@AllArgsConstructor
 @Data
-public class OrderResponseDTO{
-    Long id;
-    UserResponseDTO user;
-    List<FoodItemResponseDTO> foodItems;
-    BigDecimal totalAmount;
-    String status;
-    LocalDateTime createdAt;
+@AllArgsConstructor
+public class OrderResponseDTO {
+
+    private Long id;
+
+    private UserResponseDTO user;
+
+    private List<FoodItemResponseDTO> items;
+
+    private BigDecimal totalAmount;
+
+    private String status;
+
+    private LocalDateTime createdAt;
+
+    // 🔥 NEW FIELDS (must match mapper)
+
+    private String orderNumber;
+    private String statusLabel;
+    private String formattedDate;
+    private int totalItems;
+    private String shortDescription;
+    private boolean canReorder;
+    private boolean canDownloadInvoice;
 }

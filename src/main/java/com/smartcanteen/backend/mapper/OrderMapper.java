@@ -4,8 +4,9 @@ import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.Order;
-import com.smartcanteen.backend.entity.OrderItem;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class OrderMapper {
@@ -38,7 +39,33 @@ public class OrderMapper {
                 foodDTOs,
                 order.getTotalAmount(),
                 order.getStatus().name(),
-                order.getCreatedAt()
+                order.getCreatedAt(),
+
+                //  NEW FIELDS
+                "ORD-" + order.getId(),
+                formatStatus(order.getStatus().name()),
+                formatDate(order.getCreatedAt()),
+                order.getOrderItems().size(),
+                order.getOrderItems().size() + " items • ₹" + order.getTotalAmount(),
+                order.getStatus().name().equals("COMPLETED"),
+                order.getStatus().name().equals("COMPLETED")
         );
+    }
+
+    // ✅ ADD THIS METHOD
+    private static String formatStatus(String status) {
+        return switch (status) {
+            case "PENDING" -> "Pending";
+            case "PREPARING" -> "Preparing";
+            case "READY" -> "Ready";
+            case "COMPLETED" -> "Delivered";
+            case "CANCELLED" -> "Cancelled";
+            default -> status;
+        };
+    }
+
+    // ✅ ADD THIS METHOD
+    private static String formatDate(LocalDateTime date) {
+        return date.format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a"));
     }
 }
