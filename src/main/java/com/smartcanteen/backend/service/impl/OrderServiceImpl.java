@@ -9,6 +9,7 @@ import com.smartcanteen.backend.events.OrderStatusUpdatedEvent;
 import com.smartcanteen.backend.exception.OrderNotFoundException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.mapper.OrderMapper;
+import com.smartcanteen.backend.repository.CartRepository;
 import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.repository.UserRepository;
@@ -16,6 +17,7 @@ import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
@@ -31,15 +33,17 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final FoodItemRepository foodItemRepository;
+    private final CartRepository cartRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             UserRepository userRepository,
-                            FoodItemRepository foodItemRepository,
+                            FoodItemRepository foodItemRepository,CartRepository cartRepository,
                             ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.foodItemRepository = foodItemRepository;
+        this.cartRepository=cartRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -216,6 +220,105 @@ public class OrderServiceImpl implements OrderService {
         return response;
     }
 
+    @Override
+    public byte[] generateInvoice(Long orderId) {
+
+        log.info("Generating invoice for order ID: {}", orderId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+
+        String currentUserEmail = SecurityUtils.getCurrentUserEmail();
+        boolean isAdmin = SecurityUtils.isAdmin();
+
+        //  CHECK
+        if (currentUserEmail == null && !isAdmin) {
+            throw new RuntimeException("User not authenticated");
+        }
+
+        //  ROLE + OWNERSHIP CHECK
+        if (!isAdmin && !order.getUser().getEmail().equals(currentUserEmail)) {
+            throw new RuntimeException("Access denied");
+        }
+
+        //  INVOICE GENERATION LOGIC (SIMULATED)4
+        String invoiceContent = "Invoice for Order ID: " + order.getId() + "\n" +
+                "Customer: " + order.getUser().getName() + "\n" +
+                "Total Amount: $" + order.getTotalAmount() + "\n" +
+                "Status: " + order.getStatus() + "\n" +
+                "Items:\n";
+
+        for (OrderItem item : order.getOrderItems()) {
+            invoiceContent += "- " + item.getFoodItem().getName() +
+                    " x" + item.getQuantity() +
+                    " @ $" + item.getFoodItem().getPrice() + "\n";
+        }
+
+        log.info("Invoice content generated for order ID {}: \n{}", orderId, invoiceContent);
+
+        return invoiceContent.getBytes();
+    }
+
+    @Override
+    @Transactional
+    public void reorder(Long orderId) {
+
+        log.info("Processing reorder for orderId: {}", orderId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> {
+                    log.error("Order not found for reorder: {}", orderId);
+                    return new OrderNotFoundException("Order not found");
+                });
+
+        String currentUserEmail = SecurityUtils.getCurrentUserEmail();
+
+        if (!order.getUser().getEmail().equals(currentUserEmail)) {
+            log.error("Unauthorized reorder attempt for orderId: {} by user: {}", orderId, currentUserEmail);
+            throw new AccessDeniedException("Access denied");
+        }
+
+        User user = order.getUser();
+
+        log.info("Fetching or creating cart for user: {}", user.getEmail());
+
+        Cart cart = cartRepository.findByUser(user)
+                .orElseGet(() -> {
+                    log.info("No cart found. Creating new cart for user: {}", user.getEmail());
+                    Cart newCart = new Cart();
+                    newCart.setUser(user);
+                    return cartRepository.save(newCart);
+                });
+
+        for (OrderItem item : order.getOrderItems()) {
+
+            log.info("Processing item {} for reorder", item.getFoodItem().getId());
+
+            CartItem existing = cart.getCartItems()
+                    .stream()
+                    .filter(ci -> ci.getFoodItem().getId().equals(item.getFoodItem().getId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (existing != null) {
+                log.info("Item already exists in cart. Updating quantity.");
+                existing.setQuantity(existing.getQuantity() + item.getQuantity());
+            } else {
+                log.info("Adding new item to cart");
+
+                CartItem newItem = new CartItem();
+                newItem.setFoodItem(item.getFoodItem());
+                newItem.setQuantity(item.getQuantity());
+
+                cart.addItem(newItem);
+            }
+        }
+
+        cartRepository.save(cart);
+
+        log.info("Reorder completed successfully for orderId: {}", orderId);
+    }
+
     private void validateStatusTransition(OrderStatus current,
                                           OrderStatus next) {
 
@@ -252,4 +355,5 @@ public class OrderServiceImpl implements OrderService {
             }
         }
     }
+
 }

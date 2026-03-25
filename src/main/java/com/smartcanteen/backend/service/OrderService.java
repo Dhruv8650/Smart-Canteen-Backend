@@ -20,4 +20,8 @@ public interface OrderService {
     OrderResponseDTO updateOrderStatus(Long orderId, OrderStatus newStatus);
 
     List<OrderResponseDTO> getPendingOrders();
+
+    byte[] generateInvoice(Long orderId);
+
+    void reorder(Long orderId);
 }

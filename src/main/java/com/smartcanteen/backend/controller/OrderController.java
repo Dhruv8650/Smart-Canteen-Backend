@@ -90,4 +90,30 @@ public class OrderController {
 
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/{orderId}/invoice")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long orderId) {
+
+        byte[] pdf = orderService.generateInvoice(orderId);
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition", "attachment; filename=invoice_" + orderId + ".pdf")
+                .body(pdf);
+    }
+
+    @PostMapping("/{orderId}/reorder")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<Void>> reorder(@PathVariable Long orderId) {
+
+        orderService.reorder(orderId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Items added to cart")
+                        .build()
+        );
+    }
 }
