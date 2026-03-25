@@ -52,7 +52,7 @@ public class OrderMapper {
         );
     }
 
-    // ✅ ADD THIS METHOD
+    //  ADD THIS METHOD
     private static String formatStatus(String status) {
         return switch (status) {
             case "PENDING" -> "Pending";
@@ -64,7 +64,7 @@ public class OrderMapper {
         };
     }
 
-    // ✅ ADD THIS METHOD
+    //  ADD THIS METHOD
     private static String formatDate(LocalDateTime date) {
         return date.format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a"));
     }
