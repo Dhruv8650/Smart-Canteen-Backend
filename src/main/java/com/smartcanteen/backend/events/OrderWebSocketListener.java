@@ -28,9 +28,17 @@ public class OrderWebSocketListener {
     //  COMMON METHOD (BEST PRACTICE)
     private void sendOrderUpdate(OrderResponseDTO order) {
 
-        System.out.println(" Sending WebSocket update...");
+        System.out.println("Sending WebSocket update...");
 
-        //  ADMIN / MANAGER dashboard
+        // KITCHEN DASHBOARD (ONLY ACTIVE ORDERS)
+        if (!order.getStatus().equals("COMPLETED")) {
+            messagingTemplate.convertAndSend(
+                    "/topic/kitchen/orders",
+                    order
+            );
+        }
+
+        // ADMIN / MANAGER dashboard
         messagingTemplate.convertAndSend(
                 "/topic/admin/orders",
                 order

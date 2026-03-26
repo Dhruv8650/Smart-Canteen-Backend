@@ -9,6 +9,7 @@ import com.smartcanteen.backend.exception.EmailAlreadyExistException;
 import com.smartcanteen.backend.exception.InvalidCredentialsException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.repository.UserRepository;
+import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.JwtService;
 import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -81,27 +82,21 @@ public class UserServiceImpl implements UserService {
         return new AuthResponseDTO(token, userDTO);
     }
 
-    @Override
-    public User createManager(String name, String email, String password) {
+    public void updateUserRole(Long userId, Role role) {
 
-        log.info("Creating manager with email: {}", email);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (userRepository.findByEmail(email).isPresent()) {
-            log.warn("Manager creation failed - email exists: {}", email);
-            throw new EmailAlreadyExistException("Email already exists");
+        //  GET CURRENT ADMIN EMAIL
+        String currentEmail = SecurityUtils.getCurrentUserEmail();
+
+        //  PREVENT SELF ROLE CHANGE
+        if (user.getEmail().equals(currentEmail)) {
+            throw new IllegalStateException("Admin cannot change own role");
         }
 
-        User manager = User.builder()
-                .name(name)
-                .email(email)
-                .password(passwordEncoder.encode(password))
-                .role(Role.MANAGER)
-                .build();
+        user.setRole(role);
 
-        User savedManager = userRepository.save(manager);
-
-        log.info("Manager created successfully with ID: {}", savedManager.getId());
-
-        return savedManager;
+        userRepository.save(user);
     }
 }

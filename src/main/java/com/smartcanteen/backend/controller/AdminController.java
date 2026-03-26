@@ -1,9 +1,7 @@
 package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
-import com.smartcanteen.backend.dto.request.CreateManagerRequestDTO;
-import com.smartcanteen.backend.dto.response.UserResponseDTO;
-import com.smartcanteen.backend.entity.User;
+import com.smartcanteen.backend.dto.request.UpdateUserRoleDTO;
 import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,45 +16,32 @@ public class AdminController {
 
     private final UserService userService;
 
-    //  DASHBOARD
+    // ✅ DASHBOARD
     @GetMapping("/dashboard")
     public ResponseEntity<ApiResponse<String>> adminDashboard() {
 
-        ApiResponse<String> response =
+        return ResponseEntity.ok(
                 ApiResponse.<String>builder()
                         .success(true)
                         .message("Admin dashboard loaded")
                         .data("Welcome Admin!")
-                        .build();
-
-        return ResponseEntity.ok(response);
+                        .build()
+        );
     }
 
-    //  CREATE MANAGER
-    @PostMapping("/create-manager")
-    public ResponseEntity<ApiResponse<UserResponseDTO>> createManager(
-            @RequestBody CreateManagerRequestDTO request) {
+    // 🔥 PROMOTE USER (CORE API)
+    @PatchMapping("/users/{userId}/role")
+    public ResponseEntity<ApiResponse<Void>> updateUserRole(
+            @PathVariable Long userId,
+            @RequestBody UpdateUserRoleDTO request) {
 
-        User manager = userService.createManager(
-                request.getName(),
-                request.getEmail(),
-                request.getPassword()
-        );
+        userService.updateUserRole(userId, request.getRole());
 
-        UserResponseDTO dto = new UserResponseDTO(
-                manager.getId(),
-                manager.getName(),
-                manager.getEmail(),
-                manager.getRole()
-        );
-
-        ApiResponse<UserResponseDTO> response =
-                ApiResponse.<UserResponseDTO>builder()
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
                         .success(true)
-                        .message("Manager created successfully")
-                        .data(dto)
-                        .build();
-
-        return ResponseEntity.ok(response);
+                        .message("User role updated successfully")
+                        .build()
+        );
     }
 }
