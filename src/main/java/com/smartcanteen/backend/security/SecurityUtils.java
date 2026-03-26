@@ -5,29 +5,50 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 public class SecurityUtils {
 
-    //  EMAIL FETCH
+    private static Authentication getAuth() {
+        return SecurityContextHolder.getContext().getAuthentication();
+    }
+
+    // EMAIL FETCH
     public static String getCurrentUserEmail() {
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = getAuth();
 
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
-            return null; // 🔥 IMPORTANT
+            return null;
         }
 
         return auth.getName();
     }
 
-    //  ADMIN CHECK
-    public static boolean isAdmin() {
+    // ROLE FETCH
+    public static String getCurrentUserRole() {
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = getAuth();
 
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
-            return false;
+            return null;
         }
 
         return auth.getAuthorities()
                 .stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                .findFirst()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .orElse(null);
+    }
+
+    // ADMIN CHECK
+    public static boolean isAdmin() {
+        return "ADMIN".equals(getCurrentUserRole());
+    }
+
+    // MANAGER CHECK
+    public static boolean isManager() {
+        return "MANAGER".equals(getCurrentUserRole());
+    }
+
+    // KITCHEN CHECK
+    public static boolean isKitchen() {
+        return "KITCHEN".equals(getCurrentUserRole());
     }
 }

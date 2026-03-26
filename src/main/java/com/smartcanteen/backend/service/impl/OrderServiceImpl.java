@@ -177,21 +177,6 @@ public class OrderServiceImpl implements OrderService {
         return OrderMapper.toDTO(order);
     }
 
-    @Override
-    public List<OrderResponseDTO> getPendingOrders() {
-
-        log.info("Fetching pending orders");
-
-        List<OrderResponseDTO> orders = orderRepository.findByStatus(OrderStatus.PENDING)
-                .stream()
-                .map(OrderMapper::toDTO)
-                .toList();
-
-        log.info("Pending orders count: {}", orders.size());
-
-        return orders;
-    }
-
     @Transactional
     @Override
     public OrderResponseDTO updateOrderStatus(Long orderId,
@@ -205,6 +190,36 @@ public class OrderServiceImpl implements OrderService {
                     return new OrderNotFoundException("Order not found with id: " + orderId);
                 });
 
+        //  AUTH CHECK
+        if (SecurityUtils.getCurrentUserRole() == null) {
+            throw new IllegalStateException("User not authenticated");
+        }
+
+        log.info("User role {} attempting status update", SecurityUtils.getCurrentUserRole());
+
+        //  ROLE-BASED VALIDATION
+        if (SecurityUtils.isKitchen()) {
+
+            if (newStatus != OrderStatus.PREPARING &&
+                    newStatus != OrderStatus.READY) {
+                throw new IllegalStateException("Kitchen can only set PREPARING or READY");
+            }
+
+        } else if (SecurityUtils.isManager()) {
+
+            if (newStatus != OrderStatus.COMPLETED) {
+                throw new IllegalStateException("Manager can only mark orders as COMPLETED");
+            }
+
+            if (order.getStatus() != OrderStatus.READY) {
+                throw new IllegalStateException("Only READY orders can be completed");
+            }
+
+        } else {
+            throw new IllegalStateException("Unauthorized role for updating order");
+        }
+
+        //  EXISTING VALIDATION
         validateStatusTransition(order.getStatus(), newStatus);
 
         order.setStatus(newStatus);
@@ -213,9 +228,8 @@ public class OrderServiceImpl implements OrderService {
 
         OrderResponseDTO response = OrderMapper.toDTO(order);
 
-        //  EVENT TRIGGER
-        log.info("Publishing order status update event for orderId: {}", orderId);
-        eventPublisher.publishEvent(new  OrderStatusUpdatedEvent(response));
+        //  EVENT
+        eventPublisher.publishEvent(new OrderStatusUpdatedEvent(response));
 
         return response;
     }
@@ -257,6 +271,13 @@ public class OrderServiceImpl implements OrderService {
         log.info("Invoice content generated for order ID {}: \n{}", orderId, invoiceContent);
 
         return invoiceContent.getBytes();
+    }
+
+    public List<OrderResponseDTO> getOrdersByStatus(OrderStatus status) {
+        return orderRepository.findByStatus(status)
+                .stream()
+                .map(OrderMapper::toDTO)
+                .toList();
     }
 
     @Override
@@ -317,6 +338,21 @@ public class OrderServiceImpl implements OrderService {
         cartRepository.save(cart);
 
         log.info("Reorder completed successfully for orderId: {}", orderId);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<OrderResponseDTO> getActiveOrders() {
+
+        return orderRepository
+                .findByStatusInOrderByCreatedAtAsc(List.of(
+                        OrderStatus.PENDING,
+                        OrderStatus.PREPARING,
+                        OrderStatus.READY
+                ))
+                .stream()
+                .map(OrderMapper::toDTO)
+                .toList();
     }
 
     private void validateStatusTransition(OrderStatus current,

@@ -81,4 +81,6 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
        GROUP BY oi.foodItem.foodCategory
        """)
     List<CategorySalesDTO> getCategorySales();
+
+    List<Order> findByStatusInOrderByCreatedAtAsc(List<OrderStatus> statuses);
 }

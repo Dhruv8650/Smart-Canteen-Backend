@@ -23,13 +23,14 @@ public class OrderResponseDTO {
 
     private LocalDateTime createdAt;
 
-    // 🔥 NEW FIELDS (must match mapper)
 
     private String orderNumber;
-    private String statusLabel;
+    private String statusLabel; // business status
     private String formattedDate;
     private int totalItems;
     private String shortDescription;
     private boolean canReorder;
     private boolean canDownloadInvoice;
+    private long elapsedSeconds;
+    private String timeStatus; // WARNING / DELAYED / ON_TIME
 }

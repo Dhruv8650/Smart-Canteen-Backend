@@ -1,10 +1,9 @@
 package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
-import com.smartcanteen.backend.dto.request.UpdateOrderStatusDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.service.OrderService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,38 +19,49 @@ public class ManagerController {
 
     private final OrderService orderService;
 
-    //  UPDATE ORDER STATUS
-    @PutMapping("/{orderId}")
-    public ResponseEntity<ApiResponse<OrderResponseDTO>> updateStatus(
-            @PathVariable Long orderId,
-            @RequestBody @Valid UpdateOrderStatusDTO request) {
+    // ONLY COMPLETE ORDER
+    @PatchMapping("/{orderId}/complete")
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> completeOrder(
+            @PathVariable Long orderId) {
 
         OrderResponseDTO order =
-                orderService.updateOrderStatus(orderId, request.getStatus());
+                orderService.updateOrderStatus(orderId, OrderStatus.COMPLETED);
 
         ApiResponse<OrderResponseDTO> response =
                 ApiResponse.<OrderResponseDTO>builder()
                         .success(true)
-                        .message("Order status updated successfully")
+                        .message("Order marked as COMPLETED")
                         .data(order)
                         .build();
 
         return ResponseEntity.ok(response);
     }
 
-    //  GET PENDING ORDERS
-    @GetMapping("/pending")
-    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getPendingOrders() {
+    @GetMapping("/monitor")
+    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getActiveOrders() {
 
-        List<OrderResponseDTO> orders = orderService.getPendingOrders();
+        List<OrderResponseDTO> orders = orderService.getActiveOrders();
 
-        ApiResponse<List<OrderResponseDTO>> response =
+        return ResponseEntity.ok(
                 ApiResponse.<List<OrderResponseDTO>>builder()
                         .success(true)
-                        .message("Pending orders fetched successfully")
+                        .message("Active orders fetched for monitoring")
                         .data(orders)
-                        .build();
+                        .build()
+        );
+    }
 
-        return ResponseEntity.ok(response);
+    @GetMapping("/ready")
+    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getReadyOrders() {
+
+        List<OrderResponseDTO> orders = orderService.getOrdersByStatus(OrderStatus.READY);
+
+        return ResponseEntity.ok(
+                ApiResponse.<List<OrderResponseDTO>>builder()
+                        .success(true)
+                        .message("Ready orders fetched")
+                        .data(orders)
+                        .build()
+        );
     }
 }

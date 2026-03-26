@@ -4,8 +4,10 @@ import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.Order;
+import com.smartcanteen.backend.entity.OrderStatus;
 
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -33,6 +35,23 @@ public class OrderMapper {
                 ))
                 .toList();
 
+        // 🔥 TIME CALCULATION
+        Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now());
+
+        long minutes = duration.toMinutes();
+        long seconds = duration.getSeconds();
+
+        // 🔥 STATUS LABEL (UI LOGIC)
+        String statusLabel;
+
+        if (minutes > 10) {
+            statusLabel = "DELAYED";
+        } else if (minutes > 5) {
+            statusLabel = "WARNING";
+        } else {
+            statusLabel = "ON_TIME";
+        }
+
         return new OrderResponseDTO(
                 order.getId(),
                 userDTO,
@@ -41,18 +60,22 @@ public class OrderMapper {
                 order.getStatus().name(),
                 order.getCreatedAt(),
 
-                //  NEW FIELDS
+                // EXISTING FIELDS
                 "ORD-" + order.getId(),
                 formatStatus(order.getStatus().name()),
                 formatDate(order.getCreatedAt()),
                 order.getOrderItems().size(),
                 order.getOrderItems().size() + " items • ₹" + order.getTotalAmount(),
-                order.getStatus().name().equals("COMPLETED"),
-                order.getStatus().name().equals("COMPLETED")
+                order.getStatus() == OrderStatus.COMPLETED,
+                order.getStatus() == OrderStatus.COMPLETED,
+
+                // 🔥 NEW FIELDS
+                seconds,
+                statusLabel
         );
     }
 
-    //  ADD THIS METHOD
+    // 🔥 FORMAT STATUS
     private static String formatStatus(String status) {
         return switch (status) {
             case "PENDING" -> "Pending";
@@ -64,7 +87,7 @@ public class OrderMapper {
         };
     }
 
-    //  ADD THIS METHOD
+    // 🔥 FORMAT DATE
     private static String formatDate(LocalDateTime date) {
         return date.format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a"));
     }
