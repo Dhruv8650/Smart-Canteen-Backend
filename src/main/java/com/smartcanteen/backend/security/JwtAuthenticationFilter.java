@@ -1,5 +1,6 @@
 package com.smartcanteen.backend.security;
 
+import com.smartcanteen.backend.repository.BlackListedTokenRepository;
 import com.smartcanteen.backend.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,6 +22,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final BlackListedTokenRepository blackListedTokenRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -43,6 +45,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
+
+        // CHECK BLACKLIST FIRST
+        if (blackListedTokenRepository.existsById(token)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Token is blacklisted. Please login again.");
+            return;
+        }
+
         String email = jwtService.extractEmail(token);
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
