@@ -122,18 +122,11 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Fetching orders for user: {}", userEmail);
 
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> {
-                    log.error("User not found while fetching orders: {}", userEmail);
-                    return new UserNotFoundException("User not found");
-                });
-
-        List<OrderResponseDTO> orders = orderRepository.findByUser(user)
+        List<OrderResponseDTO> orders = orderRepository
+                .findOrdersByUserEmail(userEmail)
                 .stream()
                 .map(OrderMapper::toDTO)
                 .toList();
-
-        log.info("Found {} orders for user {}", orders.size(), userEmail);
 
         return orders;
     }

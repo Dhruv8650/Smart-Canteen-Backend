@@ -4,6 +4,7 @@ import com.smartcanteen.backend.dto.response.analytics.*;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.entity.User;
+import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -13,6 +14,15 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     List<Order> findByUser(User user);
 
     List<Order> findByStatus(OrderStatus status);
+
+    @Query("""
+        SELECT DISTINCT o FROM Order o
+        JOIN FETCH o.user
+        LEFT JOIN FETCH o.orderItems oi
+        LEFT JOIN FETCH oi.foodItem
+        WHERE o.user.email = :email
+        """)
+    List<Order> findOrdersByUserEmail(@Param("email") String email);
 
     @Query("""
        SELECT new com.smartcanteen.backend.dto.response.analytics.DailyRevenueDTO(
