@@ -11,4 +11,6 @@ public interface UserService {
     AuthResponseDTO login(String email, String password);
 
     void updateUserRole(Long userId, Role role);
+
+    void logout(String token);
 }

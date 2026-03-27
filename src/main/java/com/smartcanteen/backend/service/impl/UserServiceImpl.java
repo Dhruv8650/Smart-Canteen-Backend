@@ -11,6 +11,7 @@ import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.JwtService;
+import com.smartcanteen.backend.service.TokenBlacklistService;
 import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Override
     public User registerUser(RegisterRequestDTO request) {
@@ -98,5 +100,11 @@ public class UserServiceImpl implements UserService {
         user.setRole(role);
 
         userRepository.save(user);
+    }
+
+    @Override
+    public void logout(String token){
+        log.info("Logging out user, blacklisting token");
+        tokenBlacklistService.blacklistToken(token);
     }
 }

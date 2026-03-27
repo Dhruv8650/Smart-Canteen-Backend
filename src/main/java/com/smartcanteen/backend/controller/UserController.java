@@ -5,29 +5,28 @@ import com.smartcanteen.backend.dto.request.LoginRequestDTO;
 import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
 import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
-import com.smartcanteen.backend.entity.BlackListedToken;
 import com.smartcanteen.backend.entity.User;
-import com.smartcanteen.backend.repository.BlackListedTokenRepository;
 import com.smartcanteen.backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.apache.coyote.Response;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
 
 @RestController
 @RequestMapping("/users")
 public class UserController {
 
     private final UserService userService;
-    private final BlackListedTokenRepository blackListedTokenRepository;
 
-    public UserController(UserService userService,BlackListedTokenRepository blackListedTokenRepository){
+    public UserController(UserService userService){
         this.userService = userService;
-        this.blackListedTokenRepository=blackListedTokenRepository;
     }
+    @Autowired
+    private RedisTemplate<String,String > redisTemplate;
 
     //  REGISTER
     @PostMapping("/register")
@@ -71,6 +70,8 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+
+
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletRequest request) {
 
@@ -80,13 +81,9 @@ public class UserController {
             return ResponseEntity.badRequest().body("Invalid token");
         }
 
-        String token=authHeader.substring(7);
+        String token = authHeader.substring(7);
 
-        BlackListedToken blackListedToken=new BlackListedToken();
-        blackListedToken.setToken(token);
-        blackListedToken.setExpiryDate(LocalDateTime.now().plusMinutes(15));
-
-        blackListedTokenRepository.save(blackListedToken);
+        userService.logout(token);
 
         return ResponseEntity.ok("Logged out successfully");
     }
