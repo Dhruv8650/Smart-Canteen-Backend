@@ -2,9 +2,11 @@ package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.AddToCartRequestDTO;
+import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.request.UpdateCartItemRequestDTO;
 import com.smartcanteen.backend.dto.response.CartResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.entity.PaymentMethod;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.repository.UserRepository;
@@ -13,7 +15,6 @@ import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -117,11 +118,14 @@ public class CartController {
     @PostMapping("/checkout")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ApiResponse<OrderResponseDTO>> checkout(
+            @RequestBody OrderRequestDTO request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        User user = getUser(userDetails); // ✅ reuse existing method
+        User user = getUser(userDetails);
 
-        OrderResponseDTO order = cartService.checkout(user);
+        // 🔥 only paymentMethod is used
+        OrderResponseDTO order =
+                cartService.checkout(user, request.getPaymentMethod());
 
         return ResponseEntity.ok(
                 ApiResponse.<OrderResponseDTO>builder()

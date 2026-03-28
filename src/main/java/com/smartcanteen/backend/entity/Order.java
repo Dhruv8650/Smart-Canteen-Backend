@@ -33,6 +33,10 @@ public class Order {
     @Column(nullable = false)
     private OrderStatus status;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentMethod paymentMethod;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -68,6 +72,9 @@ public class Order {
     public List<OrderItem> getOrderItems() {
         return orderItems;
     }
+    public PaymentMethod getPaymentMethod() {
+        return paymentMethod;
+    }
 
     public void setUser(User user) {
         this.user = user;
@@ -83,5 +90,9 @@ public class Order {
 
     public void setOrderItems(List<OrderItem> orderItems) {
         this.orderItems = orderItems;
+    }
+
+    public void setPaymentMethod(PaymentMethod paymentMethod) {
+        this.paymentMethod = paymentMethod;
     }
 }

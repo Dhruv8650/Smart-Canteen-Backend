@@ -72,21 +72,36 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
-
         log.info("Placing order for user: {}", userEmail);
 
+        // 🔹 Fetch user
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        if (request.getItems().isEmpty()) {
+        if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new IllegalArgumentException("No food items selected");
         }
 
+        if (request.getPaymentMethod() == null) {
+            throw new IllegalArgumentException("Payment method is required");
+        }
+
+        // 🔹 Create Order
         Order order = new Order();
         order.setUser(user);
-        order.setStatus(OrderStatus.PAYMENT_PENDING);
+        order.setPaymentMethod(request.getPaymentMethod());
 
-        //  STEP 1: MERGE DUPLICATE ITEMS
+        // 🔥 PAYMENT LOGIC (CORE)
+        if (request.getPaymentMethod() == PaymentMethod.CASH) {
+            order.setStatus(OrderStatus.PAYMENT_PENDING);
+        } else if (request.getPaymentMethod() == PaymentMethod.UPI) {
+            // UPI (demo online payment)
+            order.setStatus(OrderStatus.PENDING);
+        } else {
+            throw new IllegalStateException("Unsupported payment method");
+        }
+
+        // 🔹 STEP 1: MERGE DUPLICATE ITEMS
         Map<Long, Integer> mergedItems = new HashMap<>();
 
         for (OrderItemRequestDTO item : request.getItems()) {
@@ -97,7 +112,7 @@ public class OrderServiceImpl implements OrderService {
             );
         }
 
-        //  STEP 2: CREATE ORDER ITEMS
+        // 🔹 STEP 2: CREATE ORDER ITEMS
         List<OrderItem> orderItems = mergedItems.entrySet()
                 .stream()
                 .map(entry -> {
@@ -112,7 +127,7 @@ public class OrderServiceImpl implements OrderService {
 
                     OrderItem orderItem = new OrderItem();
                     orderItem.setFoodItem(food);
-                    orderItem.setQuantity(quantity); //  merged quantity
+                    orderItem.setQuantity(quantity);
                     orderItem.setOrder(order);
 
                     return orderItem;
@@ -121,7 +136,7 @@ public class OrderServiceImpl implements OrderService {
 
         order.setOrderItems(orderItems);
 
-        //  STEP 3: TOTAL CALCULATION
+        // 🔹 STEP 3: TOTAL CALCULATION
         BigDecimal total = orderItems.stream()
                 .map(item -> item.getFoodItem()
                         .getPrice()
@@ -130,10 +145,15 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(total);
 
+        // 🔹 SAVE ORDER
         Order saved = orderRepository.save(order);
 
+        log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
+
+        // 🔹 MAP TO DTO
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
+        // 🔹 EVENT (WebSocket / realtime)
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         return response;

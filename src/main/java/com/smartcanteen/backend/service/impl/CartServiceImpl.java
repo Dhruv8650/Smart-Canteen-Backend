@@ -150,7 +150,7 @@ public class CartServiceImpl implements CartService {
     // 🔥 FINAL CHECKOUT (CLEAN ARCHITECTURE)
     @Override
     @Transactional
-    public OrderResponseDTO checkout(User user) {
+    public OrderResponseDTO checkout(User user, PaymentMethod paymentMethod) {
 
         log.info("Checkout started for user: {}", user.getEmail());
 
@@ -174,6 +174,7 @@ public class CartServiceImpl implements CartService {
 
         OrderRequestDTO request = new OrderRequestDTO();
         request.setItems(items);
+        request.setPaymentMethod(paymentMethod);
 
         // 🔥 Delegate to OrderService
         OrderResponseDTO response = orderService.placeOrder(request, user.getEmail());
