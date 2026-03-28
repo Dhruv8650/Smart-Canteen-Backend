@@ -4,13 +4,16 @@ import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.AddToCartRequestDTO;
 import com.smartcanteen.backend.dto.request.UpdateCartItemRequestDTO;
 import com.smartcanteen.backend.dto.response.CartResponseDTO;
+import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.CartService;
+import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +25,7 @@ public class CartController {
 
     private final CartService cartService;
     private final UserRepository userRepository;
+    private final UserService userService;
 
     //  COMMON METHOD -> reduces duplication
     private User getUser(UserDetails userDetails) {
@@ -112,19 +116,19 @@ public class CartController {
     //  CHECKOUT
     @PostMapping("/checkout")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<ApiResponse<Void>> checkout(
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> checkout(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        User user = getUser(userDetails);
+        User user = getUser(userDetails); // ✅ reuse existing method
 
-        cartService.checkout(user);
+        OrderResponseDTO order = cartService.checkout(user);
 
-        ApiResponse<Void> response = ApiResponse.<Void>builder()
-                .success(true)
-                .message("Order placed successfully")
-                .data(null)
-                .build();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                ApiResponse.<OrderResponseDTO>builder()
+                        .success(true)
+                        .message("Order placed successfully")
+                        .data(order)
+                        .build()
+        );
     }
 }

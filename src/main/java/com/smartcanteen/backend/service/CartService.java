@@ -2,6 +2,7 @@ package com.smartcanteen.backend.service;
 
 import com.smartcanteen.backend.dto.request.AddToCartRequestDTO;
 import com.smartcanteen.backend.dto.response.CartResponseDTO;
+import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.entity.User;
 
 public interface CartService {
@@ -13,5 +14,5 @@ public interface CartService {
 
     void updateQuantity(Long cartItemId,Integer quantity,User user);
 
-    void checkout(User user);
+    OrderResponseDTO checkout(User user);
 }
