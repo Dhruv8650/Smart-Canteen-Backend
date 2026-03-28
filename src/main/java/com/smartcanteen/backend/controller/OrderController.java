@@ -116,4 +116,18 @@ public class OrderController {
                         .build()
         );
     }
+
+    @PatchMapping("/{orderId}/cancel")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> cancelOrder(@PathVariable Long orderId) {
+
+        orderService.cancelOrder(orderId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Order cancelled successfully")
+                        .build()
+        );
+    }
 }

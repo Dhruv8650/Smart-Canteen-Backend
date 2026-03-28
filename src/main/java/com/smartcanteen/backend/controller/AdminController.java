@@ -2,6 +2,7 @@ package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.UpdateUserRoleDTO;
+import com.smartcanteen.backend.service.OrderService;
 import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,8 +16,9 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final UserService userService;
+    private final OrderService orderService;
 
-    // ✅ DASHBOARD
+    // DASHBOARD
     @GetMapping("/dashboard")
     public ResponseEntity<ApiResponse<String>> adminDashboard() {
 
@@ -29,7 +31,7 @@ public class AdminController {
         );
     }
 
-    // 🔥 PROMOTE USER (CORE API)
+    //  PROMOTE USER (CORE API)
     @PatchMapping("/users/{userId}/role")
     public ResponseEntity<ApiResponse<Void>> updateUserRole(
             @PathVariable Long userId,
@@ -41,6 +43,20 @@ public class AdminController {
                 ApiResponse.<Void>builder()
                         .success(true)
                         .message("User role updated successfully")
+                        .build()
+        );
+    }
+
+    @PatchMapping("/orders/{orderId}/approve-payment")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<ApiResponse<Void>> approvePayment(@PathVariable Long orderId) {
+
+        orderService.approvePayment(orderId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Payment approved, order moved to PENDING")
                         .build()
         );
     }

@@ -49,6 +49,28 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
+    public void approvePayment(Long orderId){
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+
+        if(order.getStatus() != OrderStatus.PAYMENT_PENDING){
+            throw new IllegalStateException("Order is not waiting for payment");
+        }
+
+        order.setStatus(OrderStatus.PENDING);
+
+        OrderResponseDTO response = OrderMapper.toDTO(order);
+
+        //  publish event (important for websocket)
+        eventPublisher.publishEvent(new OrderStatusUpdatedEvent(response));
+
+        log.info("Payment approved for orderId: {}", orderId);
+    }
+
+
+    @Override
+    @Transactional
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
 
         log.info("Placing order for user: {}", userEmail);
@@ -62,7 +84,7 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = new Order();
         order.setUser(user);
-        order.setStatus(OrderStatus.PENDING);
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
 
         //  STEP 1: MERGE DUPLICATE ITEMS
         Map<Long, Integer> mergedItems = new HashMap<>();
@@ -348,12 +370,38 @@ public class OrderServiceImpl implements OrderService {
                 .toList();
     }
 
+    @Override
+    public void cancelOrder(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+
+        OrderStatus status = order.getStatus();
+
+        //  RULES (IMPORTANT)
+        if (status == OrderStatus.PAYMENT_PENDING || status == OrderStatus.PENDING) {
+            order.setStatus(OrderStatus.CANCELLED);
+        } else {
+            throw new IllegalStateException("Cannot cancel at this stage");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+    }
+
     private void validateStatusTransition(OrderStatus current,
                                           OrderStatus next) {
 
         log.info("Validating status transition from {} to {}", current, next);
 
         switch (current) {
+
+            case PAYMENT_PENDING -> {
+                if (next != OrderStatus.PENDING &&
+                        next != OrderStatus.CANCELLED) {
+                    throw new IllegalStateException("Invalid transition from PAYMENT_PENDING");
+                }
+            }
 
             case PENDING -> {
                 if (next != OrderStatus.PREPARING &&
