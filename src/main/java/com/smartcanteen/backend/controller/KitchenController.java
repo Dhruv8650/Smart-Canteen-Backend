@@ -1,7 +1,6 @@
 package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
-import com.smartcanteen.backend.dto.request.UpdateOrderStatusDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.service.OrderService;
@@ -13,49 +12,46 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/kitchen")
+@RequestMapping("/kitchen/orders")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('KITCHEN')")
 public class KitchenController {
 
     private final OrderService orderService;
 
-    //  GET ACTIVE ORDERS (Kitchen Dashboard)
-    @GetMapping("/orders")
-    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getActiveOrders() {
+    //  GET ACTIVE ORDERS (AUTO SORTED)
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getKitchenOrders() {
 
-        List<OrderResponseDTO> orders = orderService.getActiveOrders();
+        List<OrderResponseDTO> orders =
+                orderService.getOrdersByStatuses(List.of(
+                        OrderStatus.PENDING,
+                        OrderStatus.PREPARING
+                ));
 
         return ResponseEntity.ok(
                 ApiResponse.<List<OrderResponseDTO>>builder()
                         .success(true)
-                        .message("Active kitchen orders fetched")
+                        .message("Kitchen orders fetched")
                         .data(orders)
                         .build()
         );
     }
 
-    // 3 UPDATE STATUS (Kitchen Flow)
-    @PatchMapping("/orders/{orderId}/status")
-    public ResponseEntity<ApiResponse<OrderResponseDTO>> updateOrderStatus(
+    //  UPDATE STATUS (BUTTON ACTION)
+    @PatchMapping("/{orderId}/status")
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> updateStatus(
             @PathVariable Long orderId,
-            @RequestBody UpdateOrderStatusDTO request) {
+            @RequestParam OrderStatus status) {
 
-        OrderStatus status = request.getStatus();
-
-        // Validation (optional, can move to service)
-        if (status != OrderStatus.PREPARING && status != OrderStatus.READY) {
-            throw new IllegalArgumentException("Kitchen can only set PREPARING or READY");
-        }
-
-        OrderResponseDTO updated =
+        OrderResponseDTO order =
                 orderService.updateOrderStatus(orderId, status);
 
         return ResponseEntity.ok(
                 ApiResponse.<OrderResponseDTO>builder()
                         .success(true)
-                        .message("Order status updated by kitchen")
-                        .data(updated)
+                        .message("Order status updated")
+                        .data(order)
                         .build()
         );
     }
