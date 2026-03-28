@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/manager/orders")
+@RequestMapping("/manager")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('MANAGER')")
 public class ManagerController {
@@ -37,29 +37,26 @@ public class ManagerController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/monitor")
-    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getActiveOrders() {
+    @GetMapping("/orders")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getOrders(
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) List<OrderStatus> statuses) {
 
-        List<OrderResponseDTO> orders = orderService.getActiveOrders();
+        List<OrderResponseDTO> orders;
 
-        return ResponseEntity.ok(
-                ApiResponse.<List<OrderResponseDTO>>builder()
-                        .success(true)
-                        .message("Active orders fetched for monitoring")
-                        .data(orders)
-                        .build()
-        );
-    }
-
-    @GetMapping("/ready")
-    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getReadyOrders() {
-
-        List<OrderResponseDTO> orders = orderService.getOrdersByStatus(OrderStatus.READY);
+        if (statuses != null && !statuses.isEmpty()) {
+            orders = orderService.getOrdersByStatuses(statuses);
+        } else if (status != null) {
+            orders = orderService.getOrdersByStatuses(List.of(status));
+        } else {
+            orders = orderService.getAllOrders();
+        }
 
         return ResponseEntity.ok(
                 ApiResponse.<List<OrderResponseDTO>>builder()
                         .success(true)
-                        .message("Ready orders fetched")
+                        .message("Orders fetched successfully")
                         .data(orders)
                         .build()
         );

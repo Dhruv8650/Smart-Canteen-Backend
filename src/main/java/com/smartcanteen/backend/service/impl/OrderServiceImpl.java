@@ -160,6 +160,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public List<OrderResponseDTO> getOrdersByStatuses(List<OrderStatus> statuses) {
+
+        return orderRepository
+                .findByStatusInOrderByCreatedAtAsc(statuses)
+                .stream()
+                .map(OrderMapper::toDTO)
+                .toList();
+    }
+
+    @Override
     public List<OrderResponseDTO> getUserOrder(String userEmail) {
 
         log.info("Fetching orders for user: {}", userEmail);
@@ -308,13 +318,6 @@ public class OrderServiceImpl implements OrderService {
         return invoiceContent.getBytes();
     }
 
-    public List<OrderResponseDTO> getOrdersByStatus(OrderStatus status) {
-        return orderRepository.findByStatus(status)
-                .stream()
-                .map(OrderMapper::toDTO)
-                .toList();
-    }
-
     @Override
     @Transactional
     public void reorder(Long orderId) {
@@ -373,21 +376,6 @@ public class OrderServiceImpl implements OrderService {
         cartRepository.save(cart);
 
         log.info("Reorder completed successfully for orderId: {}", orderId);
-    }
-
-    @Transactional(readOnly = true)
-    @Override
-    public List<OrderResponseDTO> getActiveOrders() {
-
-        return orderRepository
-                .findByStatusInOrderByCreatedAtAsc(List.of(
-                        OrderStatus.PENDING,
-                        OrderStatus.PREPARING,
-                        OrderStatus.READY
-                ))
-                .stream()
-                .map(OrderMapper::toDTO)
-                .toList();
     }
 
     @Override
@@ -452,5 +440,6 @@ public class OrderServiceImpl implements OrderService {
             }
         }
     }
+
 
 }

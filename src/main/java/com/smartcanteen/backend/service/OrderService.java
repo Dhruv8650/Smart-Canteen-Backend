@@ -22,9 +22,7 @@ public interface OrderService {
 
     void reorder(Long orderId);
 
-    List<OrderResponseDTO> getActiveOrders();
-
-    List<OrderResponseDTO> getOrdersByStatus(OrderStatus status);
+    List<OrderResponseDTO> getOrdersByStatuses(List<OrderStatus> statuses);
 
     void approvePayment(Long orderId);
 
