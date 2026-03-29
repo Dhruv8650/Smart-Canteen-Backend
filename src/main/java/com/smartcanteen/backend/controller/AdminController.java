@@ -2,12 +2,16 @@ package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.UpdateUserRoleDTO;
+import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.service.OrderService;
 import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/admin")
@@ -57,6 +61,29 @@ public class AdminController {
                 ApiResponse.<Void>builder()
                         .success(true)
                         .message("Payment approved, order moved to PENDING")
+                        .build()
+        );
+    }
+
+    @GetMapping("/orders")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getOrders(
+            @RequestParam(required = false) List<OrderStatus> statuses
+    ) {
+
+        List<OrderResponseDTO> orders;
+
+        if (statuses != null && !statuses.isEmpty()) {
+            orders = orderService.getOrdersByStatuses(statuses);
+        } else {
+            orders = orderService.getAllOrders();
+        }
+
+        return ResponseEntity.ok(
+                ApiResponse.<List<OrderResponseDTO>>builder()
+                        .success(true)
+                        .message("Orders fetched successfully")
+                        .data(orders)
                         .build()
         );
     }

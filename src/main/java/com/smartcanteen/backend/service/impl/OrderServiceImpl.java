@@ -163,9 +163,9 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<OrderResponseDTO> getOrdersByStatuses(List<OrderStatus> statuses) {
 
-        return orderRepository
-                .findByStatusInOrderByCreatedAtAsc(statuses)
-                .stream()
+        List<Order> orders = orderRepository.findByStatusInOrderByCreatedAtAsc(statuses);
+
+        return orders.stream()
                 .map(OrderMapper::toDTO)
                 .toList();
     }
