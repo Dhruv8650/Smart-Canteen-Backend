@@ -2,6 +2,7 @@ package com.smartcanteen.backend.events;
 
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.websocket.OrderCreatedEvent;
+import com.smartcanteen.backend.entity.OrderStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -30,21 +31,23 @@ public class OrderWebSocketListener {
 
         System.out.println("Sending WebSocket update...");
 
-        // KITCHEN DASHBOARD (ONLY ACTIVE ORDERS)
-        if (!order.getStatus().equals("COMPLETED")) {
+        // 🔥 KITCHEN ONLY (PENDING + PREPARING)
+        if (order.getStatus() == OrderStatus.PENDING ||
+                order.getStatus() == OrderStatus.PREPARING) {
+
             messagingTemplate.convertAndSend(
                     "/topic/kitchen/orders",
                     order
             );
         }
 
-        // ADMIN / MANAGER dashboard
+        // 🔥 ADMIN / MANAGER
         messagingTemplate.convertAndSend(
                 "/topic/admin/orders",
                 order
         );
 
-        //  USER specific updates
+        // 🔥 USER SPECIFIC
         Long userId = order.getUser().getId();
 
         messagingTemplate.convertAndSend(

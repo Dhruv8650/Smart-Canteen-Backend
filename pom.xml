@@ -56,6 +56,13 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
+        <!-- GOOGLE AUTH -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
+
         <!--  SWAGGER -->
         <dependency>
             <groupId>org.springdoc</groupId>

@@ -59,6 +59,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         order.setStatus(OrderStatus.PENDING);
+        orderRepository.save(order);
 
         OrderResponseDTO response = OrderMapper.toDTO(order);
 
@@ -386,14 +387,12 @@ public class OrderServiceImpl implements OrderService {
 
         OrderStatus status = order.getStatus();
 
-        //  RULES (IMPORTANT)
         if (status == OrderStatus.PAYMENT_PENDING || status == OrderStatus.PENDING) {
             order.setStatus(OrderStatus.CANCELLED);
         } else {
             throw new IllegalStateException("Cannot cancel at this stage");
         }
 
-        order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
     }
 

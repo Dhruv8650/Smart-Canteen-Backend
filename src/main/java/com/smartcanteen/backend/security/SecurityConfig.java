@@ -20,30 +20,26 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
 
-    //  Password Encoder
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    //  MAIN SECURITY CONFIG
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                //  Enable CORS (will use WebConfig)
                 .cors(cors -> {})
-
-                //  Disable CSRF (JWT-based API)
                 .csrf(csrf -> csrf.disable())
 
-                //  Stateless session
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                //  Authorization Rules
+                //  AUTHORIZATION FIRST
                 .authorizeHttpRequests(auth -> auth
 
                         // Swagger
@@ -57,15 +53,15 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/users/register",
                                 "/users/login",
+                                "/oauth2/**",
+                                "/login/**",
                                 "/ws-orders",
                                 "/ws-orders/**",
                                 "/test/**"
                         ).permitAll()
 
-                        // Public Menu
                         .requestMatchers(HttpMethod.GET, "/menu").permitAll()
 
-                        // Health (FIX FOR UPTIME ROBOT)
                         .requestMatchers(
                                 "/",
                                 "/health",
@@ -75,13 +71,17 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                //  Exception handling
+                //  OAUTH2 LOGIN
+                .oauth2Login(oauth -> oauth
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler)
+                )
+
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(customAuthenticationEntryPoint)
                         .accessDeniedHandler(customAccessDeniedHandler)
                 )
 
-                //  JWT filter
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);
 

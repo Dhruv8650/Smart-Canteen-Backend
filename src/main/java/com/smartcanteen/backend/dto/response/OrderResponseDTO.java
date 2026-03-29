@@ -1,5 +1,6 @@
 package com.smartcanteen.backend.dto.response;
 
+import com.smartcanteen.backend.entity.OrderStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -19,7 +20,7 @@ public class OrderResponseDTO {
 
     private BigDecimal totalAmount;
 
-    private String status;
+    private OrderStatus status;
 
     private LocalDateTime createdAt;
 

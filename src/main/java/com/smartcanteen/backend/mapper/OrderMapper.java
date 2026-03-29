@@ -57,7 +57,7 @@ public class OrderMapper {
                 userDTO,
                 foodDTOs,
                 order.getTotalAmount(),
-                order.getStatus().name(),
+                order.getStatus(),
                 order.getCreatedAt(),
 
                 // EXISTING FIELDS
