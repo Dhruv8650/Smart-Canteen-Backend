@@ -3,7 +3,6 @@ package com.smartcanteen.backend.repository;
 import com.smartcanteen.backend.dto.response.analytics.*;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderStatus;
-import com.smartcanteen.backend.entity.User;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,9 +10,6 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order,Long> {
-    List<Order> findByUser(User user);
-
-    List<Order> findByStatus(OrderStatus status);
 
     @Query("""
         SELECT DISTINCT o FROM Order o
@@ -93,4 +89,7 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     List<CategorySalesDTO> getCategorySales();
 
     List<Order> findByStatusInOrderByCreatedAtAsc(List<OrderStatus> statuses);
+
+    @Query("SELECT o FROM Order o JOIN FETCH o.user")
+    List<Order> findAllWithUser();
 }

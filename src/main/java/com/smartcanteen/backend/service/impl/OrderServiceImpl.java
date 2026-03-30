@@ -92,7 +92,7 @@ public class OrderServiceImpl implements OrderService {
         order.setUser(user);
         order.setPaymentMethod(request.getPaymentMethod());
 
-        // 🔥 PAYMENT LOGIC (CORE)
+        //  PAYMENT LOGIC (CORE)
         if (request.getPaymentMethod() == PaymentMethod.CASH) {
             order.setStatus(OrderStatus.PAYMENT_PENDING);
         } else if (request.getPaymentMethod() == PaymentMethod.UPI) {
@@ -185,11 +185,12 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public List<OrderResponseDTO> getAllOrders() {
 
         log.info("Fetching all orders");
 
-        List<OrderResponseDTO> orders = orderRepository.findAll()
+        List<OrderResponseDTO> orders = orderRepository.findAllWithUser()
                 .stream()
                 .map(OrderMapper::toDTO)
                 .toList();
