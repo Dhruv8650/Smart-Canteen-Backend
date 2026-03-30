@@ -30,7 +30,11 @@ public class User {
 
     private String resetToken;
 
+    private String resetOtp;
+
     private LocalDateTime resetTokenExpiry;
+
+    private LocalDateTime otpExpiry;
 
 
 }

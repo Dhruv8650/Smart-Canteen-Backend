@@ -10,6 +10,7 @@ import com.smartcanteen.backend.exception.InvalidCredentialsException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.security.SecurityUtils;
+import com.smartcanteen.backend.service.EmailService;
 import com.smartcanteen.backend.service.JwtService;
 import com.smartcanteen.backend.service.TokenBlacklistService;
 import com.smartcanteen.backend.service.UserService;
@@ -19,7 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.util.Random;
 
 @Slf4j
 @Service
@@ -30,6 +31,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final EmailService emailService;
 
     @Override
     public User registerUser(RegisterRequestDTO request) {
@@ -112,36 +114,44 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void generateResetToken(String email) {
+    public void sendOtp(String email) {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        String token = UUID.randomUUID().toString();
+        String otp = String.valueOf(new Random().nextInt(900000) + 100000);
 
-        user.setResetToken(token);
-        user.setResetTokenExpiry(LocalDateTime.now().plusMinutes(15));
+        user.setResetOtp(otp);
+        user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
 
         userRepository.save(user);
 
-        // TODO: send email (for now log it)
-        log.info("Reset link: http://localhost:5173/reset-password?token={}", token);
+        emailService.sendEmail(
+                email,
+                "Password Reset OTP",
+                "Your OTP is: " + otp
+        );
     }
 
     @Override
-    public void resetPassword(String token, String newPassword) {
+    public void resetPasswordWithOtp(String email, String otp, String newPassword) {
 
-        User user = userRepository.findByResetToken(token)
-                .orElseThrow(() -> new RuntimeException("Invalid token"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        if (user.getResetTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Token expired");
+        if (!otp.equals(user.getResetOtp())) {
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        if (user.getOtpExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("OTP expired");
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
-        user.setResetToken(null);
-        user.setResetTokenExpiry(null);
+        user.setResetOtp(null);
+        user.setOtpExpiry(null);
 
         userRepository.save(user);
     }
+
 }

@@ -1,8 +1,10 @@
 package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
+import com.smartcanteen.backend.dto.request.ForgotPasswordRequestDTO;
 import com.smartcanteen.backend.dto.request.LoginRequestDTO;
 import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
+import com.smartcanteen.backend.dto.request.ResetPasswordRequestDTO;
 import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.User;
@@ -90,31 +92,32 @@ public class UserController {
 
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<String>> forgotPassword(
-            @RequestParam String email) {
+            @RequestBody ForgotPasswordRequestDTO request) {
 
-        userService.generateResetToken(email);
+        userService.sendOtp(request.getEmail());
 
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()
                         .success(true)
-                        .message("Password reset link sent to email")
-                        .data(null)
+                        .message("OTP sent to email")
                         .build()
         );
     }
 
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<String>> resetPassword(
-            @RequestParam String token,
-            @RequestParam String newPassword) {
+            @RequestBody ResetPasswordRequestDTO request) {
 
-        userService.resetPassword(token, newPassword);
+        userService.resetPasswordWithOtp(
+                request.getEmail(),
+                request.getOtp(),
+                request.getNewPassword()
+        );
 
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()
                         .success(true)
                         .message("Password reset successful")
-                        .data(null)
                         .build()
         );
     }

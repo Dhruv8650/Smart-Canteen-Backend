@@ -14,7 +14,7 @@ public interface UserService {
 
     void logout(String token);
 
-    void generateResetToken(String email);
+    void sendOtp(String email);
 
-    void resetPassword(String token, String newPassword);
+    void resetPasswordWithOtp(String email, String otp, String newPassword);
 }
