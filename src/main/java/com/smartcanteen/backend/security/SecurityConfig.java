@@ -53,10 +53,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/users/register",
                                 "/users/login",
-                                "/oauth2/**",
-                                "/login/**",
-                                "/ws-orders",
                                 "/ws-orders/**",
+                                "/ws/**",
+                                "/topic/**",
+
                                 "/test/**"
                         ).permitAll()
 
