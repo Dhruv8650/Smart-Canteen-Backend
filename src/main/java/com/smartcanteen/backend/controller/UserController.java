@@ -121,4 +121,18 @@ public class UserController {
                         .build()
         );
     }
+
+    @PostMapping("/resend-otp")
+    public ResponseEntity<ApiResponse<String>> resendOtp(
+            @RequestParam String email) {
+
+        userService.resendOtp(email);
+
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .success(true)
+                        .message("OTP resent successfully")
+                        .build()
+        );
+    }
 }

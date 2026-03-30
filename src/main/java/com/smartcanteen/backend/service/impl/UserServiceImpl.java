@@ -124,6 +124,9 @@ public class UserServiceImpl implements UserService {
         user.setResetOtp(otp);
         user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
 
+        user.setOtpAttempts(0); // reset attempts
+        user.setLastOtpSentAt(LocalDateTime.now());
+
         userRepository.save(user);
 
         emailService.sendEmail(
@@ -139,19 +142,59 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        if (!otp.equals(user.getResetOtp())) {
-            throw new RuntimeException("Invalid OTP");
+        //  Check attempts
+        if (user.getOtpAttempts() >= 3) {
+            throw new RuntimeException("Maximum OTP attempts exceeded. Request new OTP.");
         }
 
+        //  Check expiry
         if (user.getOtpExpiry().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("OTP expired");
         }
 
+        //  Validate OTP
+        if (!otp.equals(user.getResetOtp())) {
+            user.setOtpAttempts(user.getOtpAttempts() + 1); // increment
+            userRepository.save(user);
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        //  SUCCESS
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setResetOtp(null);
         user.setOtpExpiry(null);
+        user.setOtpAttempts(0);
 
         userRepository.save(user);
+    }
+
+    @Override
+    public void resendOtp(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        //  Prevent spam (30 sec cooldown)
+        if (user.getLastOtpSentAt() != null &&
+                user.getLastOtpSentAt().plusSeconds(30).isAfter(LocalDateTime.now())) {
+
+            throw new RuntimeException("Please wait before requesting another OTP");
+        }
+
+        String otp = String.valueOf(new Random().nextInt(900000) + 100000);
+
+        user.setResetOtp(otp);
+        user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
+        user.setOtpAttempts(0);
+        user.setLastOtpSentAt(LocalDateTime.now());
+
+        userRepository.save(user);
+
+        emailService.sendEmail(
+                email,
+                "Resend OTP",
+                "Your new OTP is: " + otp
+        );
     }
 
 }

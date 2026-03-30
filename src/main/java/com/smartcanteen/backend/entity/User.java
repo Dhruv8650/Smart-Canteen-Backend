@@ -36,5 +36,9 @@ public class User {
 
     private LocalDateTime otpExpiry;
 
+    private int otpAttempts;
+
+    private LocalDateTime lastOtpSentAt;
+
 
 }
