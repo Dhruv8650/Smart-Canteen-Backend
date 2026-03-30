@@ -13,4 +13,8 @@ public interface UserService {
     void updateUserRole(Long userId, Role role);
 
     void logout(String token);
+
+    void generateResetToken(String email);
+
+    void resetPassword(String token, String newPassword);
 }

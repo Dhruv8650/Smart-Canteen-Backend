@@ -87,4 +87,35 @@ public class UserController {
 
         return ResponseEntity.ok("Logged out successfully");
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(
+            @RequestParam String email) {
+
+        userService.generateResetToken(email);
+
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .success(true)
+                        .message("Password reset link sent to email")
+                        .data(null)
+                        .build()
+        );
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(
+            @RequestParam String token,
+            @RequestParam String newPassword) {
+
+        userService.resetPassword(token, newPassword);
+
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .success(true)
+                        .message("Password reset successful")
+                        .data(null)
+                        .build()
+        );
+    }
 }

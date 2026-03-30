@@ -3,6 +3,8 @@ package com.smartcanteen.backend.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -25,6 +27,10 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
+
+    private String resetToken;
+
+    private LocalDateTime resetTokenExpiry;
 
 
 }
