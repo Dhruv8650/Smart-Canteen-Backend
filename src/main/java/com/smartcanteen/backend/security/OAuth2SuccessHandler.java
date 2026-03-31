@@ -4,16 +4,16 @@ import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.JwtService;
+import jakarta.servlet.http.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.oauth2.core.user.OAuth2User;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -28,28 +28,35 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
-                                        Authentication authentication) throws IOException {
+                                        Authentication authentication)
+            throws IOException {
 
-        OAuth2User oauthUser = (OAuth2User) authentication.getPrincipal();
+        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
-        String email = oauthUser.getAttribute("email");
-        String name = oauthUser.getAttribute("name");
+        String email = oAuth2User.getAttribute("email");
+        String name = oAuth2User.getAttribute("name");
 
-        //  CHECK OR CREATE USER
+        if (email == null) {
+            throw new RuntimeException("Email not found from Google");
+        }
+
+        System.out.println("GOOGLE LOGIN SUCCESS: " + email);
+
+        //  Save user if not exists
         User user = userRepository.findByEmail(email)
                 .orElseGet(() -> {
                     User newUser = new User();
                     newUser.setEmail(email);
                     newUser.setName(name);
                     newUser.setRole(Role.USER);
-                    newUser.setActive(true); // 🔥 important
-                    return userRepository.save(newUser);
+                    newUser.setPassword(UUID.randomUUID().toString());
+                    return userRepository.saveAndFlush(newUser);
                 });
 
-        //  GENERATE JWT
+        //  Generate JWT
         String token = jwtService.generateToken(user.getEmail());
 
-        //  DYNAMIC REDIRECT
+        //  Redirect to frontend
         String redirectUrl = frontendUrl + "/oauth-success?token=" + token;
 
         response.sendRedirect(redirectUrl);

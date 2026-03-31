@@ -67,6 +67,10 @@ public class SecurityConfig {
                                 "/health",
                                 "/actuator/health"
                         ).permitAll()
+                        .requestMatchers(
+                                "/oauth2/**",
+                                "/login/oauth2/**"
+                        ).permitAll()
 
                         .anyRequest().authenticated()
                 )

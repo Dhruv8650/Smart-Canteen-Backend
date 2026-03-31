@@ -46,6 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
+        System.out.println("TOKEN: " + token);
 
         try {
             // Service-based blacklist check
@@ -56,6 +57,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             String email = jwtService.extractEmail(token);
+            System.out.println("EMAIL FROM TOKEN: " + email);
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
@@ -81,6 +83,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         } catch (Exception e) {
             System.out.println("JWT ERROR: " + e.getMessage());
+            e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid or expired token");
             return;
