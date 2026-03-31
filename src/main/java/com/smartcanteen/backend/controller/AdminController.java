@@ -3,7 +3,9 @@ package com.smartcanteen.backend.controller;
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.UpdateUserRoleDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.OrderStatus;
+import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.service.OrderService;
 import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -84,6 +86,28 @@ public class AdminController {
                         .success(true)
                         .message("Orders fetched successfully")
                         .data(orders)
+                        .build()
+        );
+    }
+
+    @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<UserResponseDTO>>> getUsers(
+            @RequestParam(required = false) Role role) {
+
+        List<UserResponseDTO> users;
+
+        if (role != null) {
+            users = userService.getUsersByRole(role);
+        } else {
+            users = userService.getAllUsers();
+        }
+
+        return ResponseEntity.ok(
+                ApiResponse.<List<UserResponseDTO>>builder()
+                        .success(true)
+                        .message("Users fetched successfully")
+                        .data(users)
                         .build()
         );
     }

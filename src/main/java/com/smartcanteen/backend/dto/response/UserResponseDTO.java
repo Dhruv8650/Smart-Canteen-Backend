@@ -7,8 +7,9 @@ public class UserResponseDTO {
     private final String name;
     private final String email;
     private final Role role;
+    private boolean active;
 
-    public UserResponseDTO(Long id, String name, String email,Role role) {
+    public UserResponseDTO(Long id, String name, String email, Role role, boolean active) {
         this.id = id;
         this.name = name;
         this.email = email;
@@ -29,5 +30,9 @@ public class UserResponseDTO {
 
     public Role getRole() {
         return role;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }

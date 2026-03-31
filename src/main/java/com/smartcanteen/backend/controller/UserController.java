@@ -16,8 +16,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Duration;
-
 @RestController
 @RequestMapping("/users")
 public class UserController {
@@ -41,8 +39,8 @@ public class UserController {
                 savedUser.getId(),
                 savedUser.getName(),
                 savedUser.getEmail(),
-                savedUser.getRole()
-        );
+                savedUser.getRole(),
+                savedUser.isActive());
 
         ApiResponse<UserResponseDTO> response =
                 ApiResponse.<UserResponseDTO>builder()

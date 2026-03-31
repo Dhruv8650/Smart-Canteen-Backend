@@ -40,5 +40,6 @@ public class User {
 
     private LocalDateTime lastOtpSentAt;
 
-
+    @Column(nullable = false)
+    boolean active = true;
 }

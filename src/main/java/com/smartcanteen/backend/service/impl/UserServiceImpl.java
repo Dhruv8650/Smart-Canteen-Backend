@@ -8,6 +8,7 @@ import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.exception.EmailAlreadyExistException;
 import com.smartcanteen.backend.exception.InvalidCredentialsException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
+import com.smartcanteen.backend.mapper.UserMapper;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.EmailService;
@@ -20,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Random;
 
 @Slf4j
@@ -81,8 +83,8 @@ public class UserServiceImpl implements UserService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                user.getRole()
-        );
+                user.getRole(),
+                user.isActive());
 
         log.info("Login successful for user: {}", email);
 
@@ -195,6 +197,20 @@ public class UserServiceImpl implements UserService {
                 "Resend OTP",
                 "Your new OTP is: " + otp
         );
+    }
+
+    public List<UserResponseDTO> getAllUsers() {
+        return userRepository.findAll()
+                .stream()
+                .map(UserMapper::toDTO)
+                .toList();
+    }
+
+    public List<UserResponseDTO> getUsersByRole(Role role) {
+        return userRepository.findByRole(role)
+                .stream()
+                .map(UserMapper::toDTO)
+                .toList();
     }
 
 }

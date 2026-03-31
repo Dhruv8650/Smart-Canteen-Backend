@@ -20,8 +20,8 @@ public class OrderMapper {
                 order.getUser().getId(),
                 order.getUser().getName(),
                 order.getUser().getEmail(),
-                order.getUser().getRole()
-        );
+                order.getUser().getRole(),
+                order.getUser().isActive());
 
         // Map Order Items → Food DTOs
         List<FoodItemResponseDTO> foodDTOs = order.getOrderItems()
@@ -35,13 +35,13 @@ public class OrderMapper {
                 ))
                 .toList();
 
-        // 🔥 TIME CALCULATION
+        //  TIME CALCULATION
         Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now());
 
         long minutes = duration.toMinutes();
         long seconds = duration.getSeconds();
 
-        // 🔥 STATUS LABEL (UI LOGIC)
+        //  STATUS LABEL (UI LOGIC)
         String statusLabel;
 
         if (minutes > 10) {
@@ -69,13 +69,13 @@ public class OrderMapper {
                 order.getStatus() == OrderStatus.COMPLETED,
                 order.getStatus() == OrderStatus.COMPLETED,
 
-                // 🔥 NEW FIELDS
+                //  NEW FIELDS
                 seconds,
                 statusLabel
         );
     }
 
-    // 🔥 FORMAT STATUS
+    //  FORMAT STATUS
     private static String formatStatus(String status) {
         return switch (status) {
             case "PENDING" -> "Pending";
@@ -87,7 +87,7 @@ public class OrderMapper {
         };
     }
 
-    // 🔥 FORMAT DATE
+    //  FORMAT DATE
     private static String formatDate(LocalDateTime date) {
         return date.format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a"));
     }
