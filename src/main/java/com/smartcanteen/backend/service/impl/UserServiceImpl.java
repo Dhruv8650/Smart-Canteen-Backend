@@ -213,4 +213,13 @@ public class UserServiceImpl implements UserService {
                 .toList();
     }
 
+    @Override
+    public UserResponseDTO getUserByEmail(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return UserMapper.toDTO(user);
+    }
+
 }

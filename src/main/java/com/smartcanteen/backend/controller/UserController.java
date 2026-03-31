@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -130,6 +131,21 @@ public class UserController {
                 ApiResponse.<String>builder()
                         .success(true)
                         .message("OTP resent successfully")
+                        .build()
+        );
+    }
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> getCurrentUser(Authentication authentication) {
+
+        String email = authentication.getName();
+
+        UserResponseDTO user = userService.getUserByEmail(email);
+
+        return ResponseEntity.ok(
+                ApiResponse.<UserResponseDTO>builder()
+                        .success(true)
+                        .message("User fetched successfully")
+                        .data(user)
                         .build()
         );
     }

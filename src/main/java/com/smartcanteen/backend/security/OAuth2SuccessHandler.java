@@ -5,6 +5,7 @@ import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.JwtService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,6 +22,9 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     private final UserRepository userRepository;
     private final JwtService jwtService;
 
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
@@ -31,20 +35,23 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         String email = oauthUser.getAttribute("email");
         String name = oauthUser.getAttribute("name");
 
-        // 🔥 CHECK OR CREATE USER
+        //  CHECK OR CREATE USER
         User user = userRepository.findByEmail(email)
                 .orElseGet(() -> {
                     User newUser = new User();
                     newUser.setEmail(email);
                     newUser.setName(name);
                     newUser.setRole(Role.USER);
+                    newUser.setActive(true); // 🔥 important
                     return userRepository.save(newUser);
                 });
 
-        // 🔥 GENERATE JWT (FIXED)
+        //  GENERATE JWT
         String token = jwtService.generateToken(user.getEmail());
 
-        // 🔥 REDIRECT
-        response.sendRedirect("http://localhost:3000/oauth-success?token=" + token);
+        //  DYNAMIC REDIRECT
+        String redirectUrl = frontendUrl + "/oauth-success?token=" + token;
+
+        response.sendRedirect(redirectUrl);
     }
 }
