@@ -90,6 +90,12 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
 
     List<Order> findByStatusInOrderByCreatedAtAsc(List<OrderStatus> statuses);
 
-    @Query("SELECT o FROM Order o JOIN FETCH o.user")
-    List<Order> findAllWithUser();
+
+    @Query("""
+        SELECT DISTINCT o FROM Order o
+        JOIN FETCH o.user
+        LEFT JOIN FETCH o.orderItems oi
+        LEFT JOIN FETCH oi.foodItem
+    """)
+    List<Order> findAllWithDetails();
 }

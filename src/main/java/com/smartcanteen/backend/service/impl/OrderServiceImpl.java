@@ -175,13 +175,10 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Fetching orders for user: {}", userEmail);
 
-        List<OrderResponseDTO> orders = orderRepository
-                .findOrdersByUserEmail(userEmail)
+        return orderRepository.findOrdersByUserEmail(userEmail)
                 .stream()
                 .map(OrderMapper::toDTO)
                 .toList();
-
-        return orders;
     }
 
     @Override
@@ -190,7 +187,7 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Fetching all orders");
 
-        List<OrderResponseDTO> orders = orderRepository.findAllWithUser()
+        List<OrderResponseDTO> orders = orderRepository.findAllWithDetails()
                 .stream()
                 .map(OrderMapper::toDTO)
                 .toList();
