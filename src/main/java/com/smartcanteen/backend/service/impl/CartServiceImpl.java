@@ -1,20 +1,11 @@
 package com.smartcanteen.backend.service.impl;
 
-import com.smartcanteen.backend.dto.request.AddToCartRequestDTO;
-import com.smartcanteen.backend.dto.request.OrderItemRequestDTO;
-import com.smartcanteen.backend.dto.request.OrderRequestDTO;
-import com.smartcanteen.backend.dto.response.CartItemResponseDTO;
-import com.smartcanteen.backend.dto.response.CartResponseDTO;
-import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.dto.request.*;
+import com.smartcanteen.backend.dto.response.*;
 import com.smartcanteen.backend.entity.*;
-import com.smartcanteen.backend.exception.CartItemNotFoundException;
-import com.smartcanteen.backend.exception.CartNotFoundException;
-import com.smartcanteen.backend.exception.FoodNotFoundException;
-import com.smartcanteen.backend.repository.CartItemRepository;
-import com.smartcanteen.backend.repository.CartRepository;
-import com.smartcanteen.backend.repository.FoodItemRepository;
-import com.smartcanteen.backend.service.CartService;
-import com.smartcanteen.backend.service.OrderService;
+import com.smartcanteen.backend.exception.*;
+import com.smartcanteen.backend.repository.*;
+import com.smartcanteen.backend.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,12 +24,10 @@ public class CartServiceImpl implements CartService {
     private final FoodItemRepository foodItemRepository;
     private final OrderService orderService;
 
-    // 🔹 ADD TO CART
+    // ADD TO CART
     @Transactional
     @Override
     public void addToCart(AddToCartRequestDTO request, User user) {
-
-        log.info("User {} adding item {} to cart", user.getEmail(), request.getFoodItemId());
 
         if (request.getQuantity() == null || request.getQuantity() <= 0) {
             throw new IllegalArgumentException("Quantity must be greater than 0");
@@ -48,15 +37,11 @@ public class CartServiceImpl implements CartService {
                 .orElseThrow(() -> new FoodNotFoundException("Food item not found"));
 
         if (!foodItem.isAvailable()) {
-            throw new IllegalArgumentException("Food Item is not available");
+            throw new IllegalArgumentException("Food item is not available");
         }
 
-        Cart cart = cartRepository.findByUser(user)
-                .orElseGet(() -> {
-                    Cart newCart = new Cart();
-                    newCart.setUser(user);
-                    return cartRepository.save(newCart);
-                });
+        Cart cart = cartRepository.findByUserWithItems(user)
+                .orElseGet(() -> createNewCart(user));
 
         CartItem cartItem = cart.getCartItems()
                 .stream()
@@ -72,16 +57,18 @@ public class CartServiceImpl implements CartService {
             newItem.setQuantity(request.getQuantity());
 
             cart.addItem(newItem);
-            cartRepository.save(cart);
         }
+
+        cartRepository.save(cart);
     }
 
-    // 🔹 GET CART
+    //  GET CART
     @Override
+    @Transactional(readOnly = true)
     public CartResponseDTO getCart(User user) {
 
-        Cart cart = cartRepository.findByUser(user)
-                .orElseThrow(() -> new CartNotFoundException("Cart not found"));
+        Cart cart = cartRepository.findByUserWithItems(user)
+                .orElseGet(() -> createNewCart(user));
 
         List<CartItemResponseDTO> items = cart.getCartItems()
                 .stream()
@@ -112,7 +99,7 @@ public class CartServiceImpl implements CartService {
     @Transactional
     public void removeItem(Long cartItemId, User user) {
 
-        Cart cart = cartRepository.findByUser(user)
+        Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new CartNotFoundException("Cart not found"));
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
@@ -125,7 +112,7 @@ public class CartServiceImpl implements CartService {
         cartItemRepository.delete(cartItem);
     }
 
-    // 🔹 UPDATE QUANTITY
+    //  UPDATE QUANTITY
     @Override
     @Transactional
     public void updateQuantity(Long cartItemId, Integer quantity, User user) {
@@ -134,7 +121,7 @@ public class CartServiceImpl implements CartService {
             throw new IllegalArgumentException("Quantity must be greater than 0");
         }
 
-        Cart cart = cartRepository.findByUser(user)
+        Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new CartNotFoundException("Cart not found"));
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
@@ -147,21 +134,18 @@ public class CartServiceImpl implements CartService {
         cartItem.setQuantity(quantity);
     }
 
-    // 🔥 FINAL CHECKOUT (CLEAN ARCHITECTURE)
+    //  CHECKOUT
     @Override
     @Transactional
     public OrderResponseDTO checkout(User user, PaymentMethod paymentMethod) {
 
-        log.info("Checkout started for user: {}", user.getEmail());
-
-        Cart cart = cartRepository.findByUser(user)
+        Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
 
         if (cart.getCartItems().isEmpty()) {
             throw new IllegalStateException("Cart is empty");
         }
 
-        // 🔹 Convert cart → OrderRequestDTO
         List<OrderItemRequestDTO> items = cart.getCartItems()
                 .stream()
                 .map(ci -> {
@@ -176,17 +160,20 @@ public class CartServiceImpl implements CartService {
         request.setItems(items);
         request.setPaymentMethod(paymentMethod);
 
-        // 🔥 Delegate to OrderService
-        OrderResponseDTO response = orderService.placeOrder(request, user.getEmail());
+        OrderResponseDTO response =
+                orderService.placeOrder(request, user.getEmail());
 
-        log.info("Order placed successfully with ID: {}", response.getId());
-
-        // 🔹 Clear cart
+        // Clear cart
         cart.getCartItems().clear();
         cartRepository.save(cart);
 
-        log.info("Cart cleared after checkout for user: {}", user.getEmail());
-
         return response;
+    }
+
+    //  HELPER METHOD
+    private Cart createNewCart(User user) {
+        Cart cart = new Cart();
+        cart.setUser(user);
+        return cartRepository.save(cart);
     }
 }
