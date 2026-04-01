@@ -12,4 +12,5 @@ public class FoodItemRequestDTO{
     String name;
     FoodCategory foodCategory;
     BigDecimal price;
+    String imageUrl;
 }

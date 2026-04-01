@@ -6,8 +6,8 @@ import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderStatus;
 
-import java.time.LocalDateTime;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -15,15 +15,16 @@ public class OrderMapper {
 
     public static OrderResponseDTO toDTO(Order order) {
 
-        // Map User
+        // USER MAPPING
         UserResponseDTO userDTO = new UserResponseDTO(
                 order.getUser().getId(),
                 order.getUser().getName(),
                 order.getUser().getEmail(),
                 order.getUser().getRole(),
-                order.getUser().isActive());
+                order.getUser().isActive()
+        );
 
-        // Map Order Items → Food DTOs
+        // ORDER ITEMS → FOOD DTOs (with null safety)
         List<FoodItemResponseDTO> foodDTOs = order.getOrderItems()
                 .stream()
                 .map(orderItem -> new FoodItemResponseDTO(
@@ -31,15 +32,18 @@ public class OrderMapper {
                         orderItem.getFoodItem().getName(),
                         orderItem.getFoodItem().getCategory(),
                         orderItem.getFoodItem().getPrice(),
-                        orderItem.getFoodItem().isAvailable()
+                        orderItem.getFoodItem().isAvailable(),
+                        orderItem.getFoodItem() != null
+                                ? orderItem.getFoodItem().getImageUrl()
+                                : null
                 ))
                 .toList();
 
-        //  TIME CALCULATION
+        // TIME CALCULATION (FIXED)
         Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now());
 
         long minutes = duration.toMinutes();
-        long seconds = duration.getSeconds();
+        long seconds = duration.minusMinutes(minutes).getSeconds();
 
         //  STATUS LABEL (UI LOGIC)
         String statusLabel;
@@ -51,6 +55,12 @@ public class OrderMapper {
         } else {
             statusLabel = "ON_TIME";
         }
+
+        // ITEM SUMMARY (IMPROVED UX)
+        int itemCount = order.getOrderItems().size();
+        String summary = itemCount +
+                (itemCount == 1 ? " item • ₹" : " items • ₹") +
+                order.getTotalAmount();
 
         return new OrderResponseDTO(
                 order.getId(),
@@ -64,21 +74,22 @@ public class OrderMapper {
                 "ORD-" + order.getId(),
                 formatStatus(order.getStatus().name()),
                 formatDate(order.getCreatedAt()),
-                order.getOrderItems().size(),
-                order.getOrderItems().size() + " items • ₹" + order.getTotalAmount(),
+                itemCount,
+                summary,
                 order.getStatus() == OrderStatus.COMPLETED,
                 order.getStatus() == OrderStatus.COMPLETED,
 
-                //  NEW FIELDS
+                // NEW FIELDS
                 seconds,
                 statusLabel
         );
     }
 
-    //  FORMAT STATUS
+    // FORMAT STATUS (UPDATED)
     private static String formatStatus(String status) {
         return switch (status) {
             case "PENDING" -> "Pending";
+            case "PAYMENT_PENDING" -> "Payment Pending";
             case "PREPARING" -> "Preparing";
             case "READY" -> "Ready";
             case "COMPLETED" -> "Delivered";
@@ -87,7 +98,7 @@ public class OrderMapper {
         };
     }
 
-    //  FORMAT DATE
+    // FORMAT DATE
     private static String formatDate(LocalDateTime date) {
         return date.format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a"));
     }

@@ -30,6 +30,7 @@ public class FoodServiceImpl implements FoodService {
         food.setName(request.getName());
         food.setCategory(request.getFoodCategory());
         food.setPrice(request.getPrice());
+        food.setImageUrl(request.getImageUrl());
 
         FoodItem saved = foodItemRepository.save(food);
 
@@ -53,7 +54,10 @@ public class FoodServiceImpl implements FoodService {
         food.setName(request.getName());
         food.setCategory(request.getFoodCategory());
         food.setPrice(request.getPrice());
-
+        //update image only if provided
+        if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
+            food.setImageUrl(request.getImageUrl());
+        }
         FoodItem updated = foodItemRepository.save(food);
 
         log.info("Food item updated successfully: {}", id);
@@ -159,7 +163,8 @@ public class FoodServiceImpl implements FoodService {
                 food.getName(),
                 food.getCategory(),
                 food.getPrice(),
-                food.isAvailable()
+                food.isAvailable(),
+                food.getImageUrl()
         );
     }
 }

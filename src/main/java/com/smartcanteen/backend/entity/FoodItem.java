@@ -21,6 +21,9 @@ public class FoodItem {
     @Column(nullable = false)
     private BigDecimal price;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     private boolean available = true;
 
     private LocalDateTime createdAt;
@@ -47,10 +50,16 @@ public class FoodItem {
     public boolean isAvailable() { return available; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public String getImageUrl() {
+        return imageUrl;
+    }
 
     // Setters
     public void setName(String name) { this.name = name; }
     public void setCategory(FoodCategory foodCategory) { this.foodCategory = foodCategory; }
     public void setPrice(BigDecimal price) { this.price = price; }
     public void setAvailable(boolean available) { this.available = available; }
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 }

@@ -14,4 +14,5 @@ public class FoodItemResponseDTO{
     FoodCategory foodCategory;
     BigDecimal price;
     boolean available;
+    String imageUrl;
 }
