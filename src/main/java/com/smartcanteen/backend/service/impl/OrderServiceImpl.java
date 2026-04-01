@@ -49,24 +49,33 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public void approvePayment(Long orderId){
+    public OrderResponseDTO approvePayment(Long orderId){
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
 
+        //  Only PAYMENT_PENDING
         if(order.getStatus() != OrderStatus.PAYMENT_PENDING){
             throw new IllegalStateException("Order is not waiting for payment");
         }
 
+        //  Only CASH
+        if(order.getPaymentMethod() != PaymentMethod.CASH){
+            throw new IllegalStateException("Only cash orders can be approved");
+        }
+
         order.setStatus(OrderStatus.PENDING);
-        orderRepository.save(order);
 
-        OrderResponseDTO response = OrderMapper.toDTO(order);
+        Order updated = orderRepository.save(order);
 
-        //  publish event (important for websocket)
+        OrderResponseDTO response = OrderMapper.toDTO(updated);
+
+        //  event
         eventPublisher.publishEvent(new OrderStatusUpdatedEvent(response));
 
         log.info("Payment approved for orderId: {}", orderId);
+
+        return response; //
     }
 
 

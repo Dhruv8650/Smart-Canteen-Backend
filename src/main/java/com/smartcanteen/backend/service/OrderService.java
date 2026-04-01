@@ -24,7 +24,7 @@ public interface OrderService {
 
     List<OrderResponseDTO> getOrdersByStatuses(List<OrderStatus> statuses);
 
-    void approvePayment(Long orderId);
+    OrderResponseDTO approvePayment(Long orderId);
 
     void cancelOrder(Long orderId);
 }
