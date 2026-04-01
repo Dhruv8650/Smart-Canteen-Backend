@@ -96,7 +96,7 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalArgumentException("Payment method is required");
         }
 
-        // 🔹 Create Order
+        //  Create Order
         Order order = new Order();
         order.setUser(user);
         order.setPaymentMethod(request.getPaymentMethod());
@@ -111,7 +111,7 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("Unsupported payment method");
         }
 
-        // 🔹 STEP 1: MERGE DUPLICATE ITEMS
+        //  STEP 1: MERGE DUPLICATE ITEMS
         Map<Long, Integer> mergedItems = new HashMap<>();
 
         for (OrderItemRequestDTO item : request.getItems()) {
@@ -172,7 +172,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<OrderResponseDTO> getOrdersByStatuses(List<OrderStatus> statuses) {
 
-        List<Order> orders = orderRepository.findByStatusInOrderByCreatedAtAsc(statuses);
+        List<Order> orders = orderRepository.findByStatusesWithDetails(statuses);
 
         return orders.stream()
                 .map(OrderMapper::toDTO)

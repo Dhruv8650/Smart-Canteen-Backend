@@ -43,14 +43,16 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
         System.out.println("GOOGLE LOGIN SUCCESS: " + email);
 
         //  Save user if not exists
-        User user = userRepository.findByEmail(email)
+        String normalizedEmail = email.trim().toLowerCase();
+
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseGet(() -> {
                     User newUser = new User();
-                    newUser.setEmail(email);
+                    newUser.setEmail(normalizedEmail);
                     newUser.setName(name);
                     newUser.setRole(Role.USER);
                     newUser.setPassword(UUID.randomUUID().toString());
-                    return userRepository.saveAndFlush(newUser);
+                    return userRepository.save(newUser);
                 });
 
         //  Generate JWT
