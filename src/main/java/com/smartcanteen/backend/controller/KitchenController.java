@@ -11,16 +11,17 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@PreAuthorize("hasRole('KITCHEN')")
 @RestController
 @RequestMapping("/kitchen/orders")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('KITCHEN')")
 public class KitchenController {
 
     private final OrderService orderService;
 
-    //  GET ACTIVE ORDERS (AUTO SORTED)
+    //  GET ACTIVE ORDERS
     @GetMapping
+
     public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getKitchenOrders() {
 
         List<OrderResponseDTO> orders =

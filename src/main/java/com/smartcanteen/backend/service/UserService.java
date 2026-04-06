@@ -3,6 +3,7 @@ package com.smartcanteen.backend.service;
 import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
 import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
+import com.smartcanteen.backend.entity.OtpType;
 import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.entity.User;
 
@@ -17,15 +18,17 @@ public interface UserService {
 
     void logout(String token);
 
-    void sendOtp(String email);
+    void sendOtp(String email, OtpType type);
 
     void resetPasswordWithOtp(String email, String otp, String newPassword);
 
-    void resendOtp(String email);
+    void resendOtp(String email,OtpType type);
 
     List<UserResponseDTO> getUsersByRole(Role role);
 
     List<UserResponseDTO> getAllUsers();
 
     UserResponseDTO getUserByEmail(String email);
+
+    void verifyEmail(String email, String otp);
 }

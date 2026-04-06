@@ -3,6 +3,7 @@ package com.smartcanteen.backend.service.impl;
 import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
 import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
+import com.smartcanteen.backend.entity.OtpType;
 import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.exception.EmailAlreadyExistException;
@@ -50,9 +51,12 @@ public class UserServiceImpl implements UserService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)
+                .isVerified(false)
                 .build();
 
         User savedUser = userRepository.save(user);
+
+        sendOtp(savedUser.getEmail(),OtpType.VERIFY_EMAIL );
 
         log.info("User registered successfully with ID: {}", savedUser.getId());
 
@@ -73,6 +77,10 @@ public class UserServiceImpl implements UserService {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             log.warn("Login failed - invalid credentials for email: {}", email);
             throw new InvalidCredentialsException("Invalid credentials");
+        }
+
+        if (!user.isVerified()) {
+            throw new RuntimeException("Please verify your email first");
         }
 
         String token = jwtService.generateToken(user.getEmail());
@@ -116,26 +124,65 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void sendOtp(String email) {
+    public void sendOtp(String email, OtpType type) {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         String otp = String.valueOf(new Random().nextInt(900000) + 100000);
 
-        user.setResetOtp(otp);
-        user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
-
-        user.setOtpAttempts(0); // reset attempts
+        user.setOtpAttempts(0);
         user.setLastOtpSentAt(LocalDateTime.now());
+
+        if (type == OtpType.VERIFY_EMAIL) {
+            user.setVerifyOtp(otp);
+            user.setVerifyOtpExpiry(LocalDateTime.now().plusMinutes(5));
+        } else {
+            user.setResetOtp(otp);
+            user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(5));
+        }
 
         userRepository.save(user);
 
-        emailService.sendEmail(
-                email,
-                "Password Reset OTP",
-                "Your OTP is: " + otp
-        );
+        String subject = (type == OtpType.VERIFY_EMAIL)
+                ? "Email Verification OTP"
+                : "Password Reset OTP";
+
+        String message = (type == OtpType.VERIFY_EMAIL)
+                ? "Use this OTP to verify your email: " + otp
+                : "Use this OTP to reset your password: " + otp;
+
+        emailService.sendEmail(email, subject, message);
+    }
+
+    @Override
+    public void verifyEmail(String email, String otp) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        if (user.getOtpAttempts() >= 3) {
+            throw new RuntimeException("Maximum OTP attempts exceeded");
+        }
+
+        if (user.getVerifyOtpExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("OTP expired");
+        }
+
+        if (!otp.equals(user.getVerifyOtp())) {
+            user.setOtpAttempts(user.getOtpAttempts() + 1);
+            userRepository.save(user);
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        // SUCCESS
+        user.setVerified(true);
+
+        user.setVerifyOtp(null);
+        user.setVerifyOtpExpiry(null);
+        user.setOtpAttempts(0);
+
+        userRepository.save(user);
     }
 
     @Override
@@ -144,34 +191,32 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        //  Check attempts
         if (user.getOtpAttempts() >= 3) {
-            throw new RuntimeException("Maximum OTP attempts exceeded. Request new OTP.");
+            throw new RuntimeException("Maximum OTP attempts exceeded");
         }
 
-        //  Check expiry
-        if (user.getOtpExpiry().isBefore(LocalDateTime.now())) {
+        if (user.getResetOtpExpiry().isBefore(LocalDateTime.now())) {
             throw new RuntimeException("OTP expired");
         }
 
-        //  Validate OTP
         if (!otp.equals(user.getResetOtp())) {
-            user.setOtpAttempts(user.getOtpAttempts() + 1); // increment
+            user.setOtpAttempts(user.getOtpAttempts() + 1);
             userRepository.save(user);
             throw new RuntimeException("Invalid OTP");
         }
 
-        //  SUCCESS
+        // SUCCESS
         user.setPassword(passwordEncoder.encode(newPassword));
+
         user.setResetOtp(null);
-        user.setOtpExpiry(null);
+        user.setResetOtpExpiry(null);
         user.setOtpAttempts(0);
 
         userRepository.save(user);
     }
 
     @Override
-    public void resendOtp(String email) {
+    public void resendOtp(String email, OtpType type) {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
@@ -185,18 +230,32 @@ public class UserServiceImpl implements UserService {
 
         String otp = String.valueOf(new Random().nextInt(900000) + 100000);
 
-        user.setResetOtp(otp);
-        user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
         user.setOtpAttempts(0);
         user.setLastOtpSentAt(LocalDateTime.now());
 
+        String subject;
+        String message;
+
+        if (type == OtpType.VERIFY_EMAIL) {
+
+            user.setVerifyOtp(otp);
+            user.setVerifyOtpExpiry(LocalDateTime.now().plusMinutes(5));
+
+            subject = "Email Verification OTP";
+            message = "Your verification OTP is: " + otp;
+
+        } else {
+
+            user.setResetOtp(otp);
+            user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(5));
+
+            subject = "Password Reset OTP";
+            message = "Your password reset OTP is: " + otp;
+        }
+
         userRepository.save(user);
 
-        emailService.sendEmail(
-                email,
-                "Resend OTP",
-                "Your new OTP is: " + otp
-        );
+        emailService.sendEmail(email, subject, message);
     }
 
     public List<UserResponseDTO> getAllUsers() {

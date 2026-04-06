@@ -7,6 +7,7 @@ import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
 import com.smartcanteen.backend.dto.request.ResetPasswordRequestDTO;
 import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
+import com.smartcanteen.backend.entity.OtpType;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -93,7 +94,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> forgotPassword(
             @RequestBody ForgotPasswordRequestDTO request) {
 
-        userService.sendOtp(request.getEmail());
+        userService.sendOtp(request.getEmail(), OtpType.RESET_PASSWORD );
 
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()
@@ -121,11 +122,27 @@ public class UserController {
         );
     }
 
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<String>> verifyEmail(
+            @RequestParam String email,
+            @RequestParam String otp) {
+
+        userService.verifyEmail(email, otp);
+
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .success(true)
+                        .message("Email verified successfully")
+                        .build()
+        );
+    }
+
     @PostMapping("/resend-otp")
     public ResponseEntity<ApiResponse<String>> resendOtp(
-            @RequestParam String email) {
+            @RequestParam String email,
+            @RequestParam String type) {
 
-        userService.resendOtp(email);
+        userService.resendOtp(email, OtpType.valueOf(type));
 
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()

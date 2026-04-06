@@ -19,7 +19,7 @@ public class User {
 
     private String name;
 
-    @Column(unique = true,nullable = false)
+    @Column(unique = true, nullable = false)
     private String email;
 
     private String password;
@@ -29,17 +29,21 @@ public class User {
     private Role role;
 
     private String resetToken;
-
-    private String resetOtp;
-
     private LocalDateTime resetTokenExpiry;
 
-    private LocalDateTime otpExpiry;
+    private String resetOtp;
+    private LocalDateTime resetOtpExpiry;
+
+    private String verifyOtp;
+    private LocalDateTime verifyOtpExpiry;
 
     private int otpAttempts;
-
     private LocalDateTime lastOtpSentAt;
 
     @Column(nullable = false)
-    boolean active = true;
+    private boolean active = true;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean isVerified = false;
 }
