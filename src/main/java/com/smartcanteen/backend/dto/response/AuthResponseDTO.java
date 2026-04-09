@@ -1,19 +1,23 @@
 package com.smartcanteen.backend.dto.response;
 
-import lombok.RequiredArgsConstructor;
-
-
 public class AuthResponseDTO {
-    private String token;
+
+    private String accessToken;
+    private String refreshToken;
     private UserResponseDTO user;
 
-    public AuthResponseDTO(String token, UserResponseDTO user) {
-        this.token = token;
+    public AuthResponseDTO(String accessToken, String refreshToken, UserResponseDTO user) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
         this.user = user;
     }
 
-    public String getToken() {
-        return token;
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
     }
 
     public UserResponseDTO getUser() {

@@ -9,6 +9,7 @@ import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.OtpType;
 import com.smartcanteen.backend.entity.User;
+import com.smartcanteen.backend.service.JwtService;
 import com.smartcanteen.backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -19,14 +20,17 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/users")
 public class UserController {
 
     private final UserService userService;
+    private final JwtService jwtService;
 
-    public UserController(UserService userService){
+    public UserController(UserService userService, JwtService jwtService) {
+        this.jwtService = jwtService;
         this.userService = userService;
     }
     @Autowired
@@ -153,6 +157,18 @@ public class UserController {
                         .message("Email verified successfully")
                         .build()
         );
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
+
+        String refreshToken = request.get("refreshToken");
+
+        String email = jwtService.extractEmail(refreshToken);
+
+        String newAccessToken = jwtService.generateToken(email);
+
+        return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
     }
 
     @GetMapping("/me")

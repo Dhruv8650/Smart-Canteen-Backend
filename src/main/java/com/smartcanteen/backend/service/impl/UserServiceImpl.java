@@ -12,10 +12,7 @@ import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.mapper.UserMapper;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.security.SecurityUtils;
-import com.smartcanteen.backend.service.EmailService;
-import com.smartcanteen.backend.service.JwtService;
-import com.smartcanteen.backend.service.TokenBlacklistService;
-import com.smartcanteen.backend.service.UserService;
+import com.smartcanteen.backend.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +33,7 @@ public class UserServiceImpl implements UserService {
     private final JwtService jwtService;
     private final TokenBlacklistService tokenBlacklistService;
     private final EmailService emailService;
+    private final CanteenService canteenService;
 
     @Override
     public User registerUser(RegisterRequestDTO request) {
@@ -98,9 +96,19 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Please verify your email first");
         }
 
-        String token = jwtService.generateToken(user.getEmail());
+        // CANTEEN CHECK
+        if ((user.getRole() == Role.MANAGER || user.getRole() == Role.KITCHEN)
+                && !canteenService.isCanteenOpen()) {
 
-        log.info("JWT token generated for user: {}", email);
+            log.warn("Login blocked - canteen closed for {}", email);
+            throw new RuntimeException("Canteen is closed. Login not allowed.");
+        }
+
+        // Generate BOTH tokens
+        String accessToken = jwtService.generateToken(user.getEmail());
+        String refreshToken = jwtService.generateRefreshToken(user.getEmail());
+
+        log.info("Tokens generated for user: {}", email);
 
         UserResponseDTO userDTO = new UserResponseDTO(
                 user.getId(),
@@ -111,7 +119,7 @@ public class UserServiceImpl implements UserService {
 
         log.info("Login successful for user: {}", email);
 
-        return new AuthResponseDTO(token, userDTO);
+        return new AuthResponseDTO(accessToken, refreshToken, userDTO);
     }
 
     public void updateUserRole(Long userId, Role role) {

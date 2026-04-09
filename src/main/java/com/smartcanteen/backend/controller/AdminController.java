@@ -6,6 +6,7 @@ import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.entity.Role;
+import com.smartcanteen.backend.service.CanteenService;
 import com.smartcanteen.backend.service.OrderService;
 import com.smartcanteen.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class AdminController {
 
     private final UserService userService;
     private final OrderService orderService;
+    private final CanteenService canteenService;
 
     // DASHBOARD
     @GetMapping("/dashboard")
@@ -110,5 +112,16 @@ public class AdminController {
                         .data(users)
                         .build()
         );
+    }
+    @PostMapping("/canteen/open")
+    public ResponseEntity<String> openCanteen() {
+        canteenService.openCanteen();
+        return ResponseEntity.ok("Canteen opened");
+    }
+
+    @PostMapping("/canteen/close")
+    public ResponseEntity<String> closeCanteen() {
+        canteenService.closeCanteen();
+        return ResponseEntity.ok("Canteen closed");
     }
 }

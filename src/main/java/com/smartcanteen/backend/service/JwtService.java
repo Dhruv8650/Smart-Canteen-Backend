@@ -19,6 +19,7 @@ public class JwtService {
     private String secret;
 
     private static final long ACCESS_TOKEN_VALIDITY = 1000 * 60 * 15; // 15 min
+    private static final long REFRESH_TOKEN_VALIDITY = 1000 * 60 * 60 * 12; // 12 hrs
 
     private Key getSignInKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
@@ -30,6 +31,15 @@ public class JwtService {
                 .setSubject(email)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_VALIDITY))
+                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String generateRefreshToken(String email) {
+        return Jwts.builder()
+                .setSubject(email)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + REFRESH_TOKEN_VALIDITY))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
