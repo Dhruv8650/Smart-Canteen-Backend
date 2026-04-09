@@ -124,4 +124,17 @@ public class AdminController {
         canteenService.closeCanteen();
         return ResponseEntity.ok("Canteen closed");
     }
+    @GetMapping("/canteen/status")
+    public ResponseEntity<ApiResponse<Boolean>> getCanteenStatus() {
+
+        boolean isOpen = canteenService.isCanteenOpen();
+
+        return ResponseEntity.ok(
+                ApiResponse.<Boolean>builder()
+                        .success(true)
+                        .message("Canteen status fetched")
+                        .data(isOpen)
+                        .build()
+        );
+    }
 }
