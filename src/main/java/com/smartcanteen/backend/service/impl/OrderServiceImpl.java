@@ -14,6 +14,7 @@ import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.security.SecurityUtils;
+import com.smartcanteen.backend.service.CanteenService;
 import com.smartcanteen.backend.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,15 +36,17 @@ public class OrderServiceImpl implements OrderService {
     private final FoodItemRepository foodItemRepository;
     private final CartRepository cartRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CanteenService canteenService;
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             UserRepository userRepository,
-                            FoodItemRepository foodItemRepository,CartRepository cartRepository,
+                            FoodItemRepository foodItemRepository,CartRepository cartRepository,CanteenService canteenService,
                             ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.foodItemRepository = foodItemRepository;
         this.cartRepository=cartRepository;
+        this.canteenService=canteenService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -82,6 +85,13 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
+
+        // CANTEEN CHECK
+        if (!canteenService.isCanteenOpen()) {
+            log.warn("Order blocked - canteen is closed for user: {}", userEmail);
+            throw new RuntimeException("Canteen is closed. Orders are not allowed.");
+        }
+
         log.info("Placing order for user: {}", userEmail);
 
         // 🔹 Fetch user
