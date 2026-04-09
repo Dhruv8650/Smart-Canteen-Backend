@@ -63,6 +63,8 @@ public class SecurityConfig {
                                 "/test/**"
                         ).permitAll()
 
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         .requestMatchers(HttpMethod.GET, "/menu").permitAll()
 
                         .requestMatchers(
