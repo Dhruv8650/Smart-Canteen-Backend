@@ -27,32 +27,44 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
 
+        //  HANDLE CONNECT
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
 
-            String authHeader = accessor.getFirstNativeHeader("authorization"); // ✅ fixed
+            // FIX: Support both header cases
+            String authHeader = accessor.getFirstNativeHeader("Authorization");
+
+            if (authHeader == null) {
+                authHeader = accessor.getFirstNativeHeader("authorization");
+            }
+
+            //  DEBUG (optional - remove later)
+            System.out.println("Headers: " + accessor.toNativeHeaderMap());
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 throw new RuntimeException("Missing or invalid Authorization header");
             }
 
             String token = authHeader.substring(7);
+
             String email = jwtService.extractEmail(token);
 
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
+            //  IMPROVED: Add role as authority
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
                             user,
                             null,
-                            List.of()
+                            List.of(() -> "ROLE_" + user.getRole().name())
                     );
 
-            accessor.setUser(authentication); // ✅ correct way
+            accessor.setUser(authentication);
 
             System.out.println("👤 CONNECT USER: " + email);
         }
 
+        // HANDLE SUBSCRIBE
         if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
 
             if (accessor.getUser() == null) {
@@ -67,6 +79,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
+            // ADMIN TOPIC
             if (destination.equals("/topic/admin/orders")) {
                 if (user.getRole() != Role.ADMIN &&
                         user.getRole() != Role.MANAGER) {
@@ -74,6 +87,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 }
             }
 
+            //USER-SPECIFIC TOPIC
             if (destination.startsWith("/topic/user/")) {
                 Long requestedUserId = Long.parseLong(destination.split("/")[3]);
 
