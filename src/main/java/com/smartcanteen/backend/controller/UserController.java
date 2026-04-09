@@ -18,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+
 @RestController
 @RequestMapping("/users")
 public class UserController {
@@ -122,20 +124,6 @@ public class UserController {
         );
     }
 
-    @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<String>> verifyEmail(
-            @RequestParam String email,
-            @RequestParam String otp) {
-
-        userService.verifyEmail(email, otp);
-
-        return ResponseEntity.ok(
-                ApiResponse.<String>builder()
-                        .success(true)
-                        .message("Email verified successfully")
-                        .build()
-        );
-    }
 
     @PostMapping("/resend-otp")
     public ResponseEntity<ApiResponse<String>> resendOtp(
@@ -151,6 +139,22 @@ public class UserController {
                         .build()
         );
     }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<String>> verifyEmail(
+            @RequestParam String email,
+            @RequestParam String otp) {
+
+        userService.verifyEmail(email, otp);
+
+        return ResponseEntity.ok(
+                ApiResponse.<String>builder()
+                        .success(true)
+                        .message("Email verified successfully")
+                        .build()
+        );
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponseDTO>> getCurrentUser(Authentication authentication) {
 

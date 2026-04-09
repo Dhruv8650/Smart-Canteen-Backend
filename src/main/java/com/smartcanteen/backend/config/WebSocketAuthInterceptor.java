@@ -1,5 +1,6 @@
 package com.smartcanteen.backend.config;
 
+import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.JwtService;
@@ -9,7 +10,10 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -23,26 +27,37 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
 
-        // 🔐 HANDLE CONNECT (already working)
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
 
-            String authHeader = accessor.getFirstNativeHeader("Authorization");
+            String authHeader = accessor.getFirstNativeHeader("authorization"); // ✅ fixed
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 throw new RuntimeException("Missing or invalid Authorization header");
             }
 
             String token = authHeader.substring(7);
-
             String email = jwtService.extractEmail(token);
 
-            System.out.println("👤 CONNECT USER: " + email);
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-            accessor.setUser(() -> email);
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            user,
+                            null,
+                            List.of()
+                    );
+
+            accessor.setUser(authentication); // ✅ correct way
+
+            System.out.println("👤 CONNECT USER: " + email);
         }
 
-        //  HANDLE SUBSCRIBE (NEW SECURITY)
         if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+
+            if (accessor.getUser() == null) {
+                throw new RuntimeException("Unauthorized: No user in session");
+            }
 
             String destination = accessor.getDestination();
             String email = accessor.getUser().getName();
@@ -52,23 +67,18 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            //  ADMIN TOPIC PROTECTION
             if (destination.equals("/topic/admin/orders")) {
-
-                if (user.getRole() != com.smartcanteen.backend.entity.Role.ADMIN &&
-                        user.getRole() != com.smartcanteen.backend.entity.Role.MANAGER) {
-
-                    throw new RuntimeException("Access denied: Not an admin/manager");
+                if (user.getRole() != Role.ADMIN &&
+                        user.getRole() != Role.MANAGER) {
+                    throw new RuntimeException("Access denied");
                 }
             }
 
-            // USER-SPECIFIC TOPIC PROTECTION
             if (destination.startsWith("/topic/user/")) {
-
                 Long requestedUserId = Long.parseLong(destination.split("/")[3]);
 
                 if (!user.getId().equals(requestedUserId)) {
-                    throw new RuntimeException("Access denied: Cannot subscribe to other user's data");
+                    throw new RuntimeException("Access denied");
                 }
             }
         }
