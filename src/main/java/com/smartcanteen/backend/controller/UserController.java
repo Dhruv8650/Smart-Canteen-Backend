@@ -10,6 +10,7 @@ import com.smartcanteen.backend.dto.response.UserResponseDTO;
 import com.smartcanteen.backend.entity.OtpType;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.service.JwtService;
+import com.smartcanteen.backend.service.TokenBlacklistService;
 import com.smartcanteen.backend.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -28,10 +29,12 @@ public class UserController {
 
     private final UserService userService;
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public UserController(UserService userService, JwtService jwtService) {
+    public UserController(UserService userService, JwtService jwtService, TokenBlacklistService tokenBlacklistService) {
         this.jwtService = jwtService;
         this.userService = userService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
     @Autowired
     private RedisTemplate<String,String > redisTemplate;
@@ -165,6 +168,11 @@ public class UserController {
         String refreshToken = request.get("refreshToken");
 
         String email = jwtService.extractEmail(refreshToken);
+
+        // VALIDATE FROM REDIS
+        if (!tokenBlacklistService.isValidRefreshToken(email, refreshToken)) {
+            throw new RuntimeException("Invalid refresh token");
+        }
 
         String newAccessToken = jwtService.generateToken(email);
 

@@ -108,6 +108,9 @@ public class UserServiceImpl implements UserService {
         String accessToken = jwtService.generateToken(user.getEmail());
         String refreshToken = jwtService.generateRefreshToken(user.getEmail());
 
+        // STORE REFRESH TOKEN IN REDIS
+        tokenBlacklistService.storeRefreshToken(user.getEmail(), refreshToken);
+
         log.info("Tokens generated for user: {}", email);
 
         UserResponseDTO userDTO = new UserResponseDTO(
@@ -141,9 +144,17 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void logout(String token){
+    public void logout(String token) {
+
         log.info("Logging out user, blacklisting token");
+
+        String email = jwtService.extractEmail(token);
+
+        // blacklist access token
         tokenBlacklistService.blacklistToken(token);
+
+        // delete refresh token
+        tokenBlacklistService.deleteRefreshToken(email);
     }
 
     @Override

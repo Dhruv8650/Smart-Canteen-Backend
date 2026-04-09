@@ -16,6 +16,7 @@ public class TokenBlacklistServiceImpl  implements TokenBlacklistService {
 
     private final RedisTemplate<String,Object> redisTemplate;
     private static final String BLACKLIST_PREFIX = "blacklist:";
+    private static final String REFRESH_PREFIX = "refresh:";
 
     @Override
     public void blacklistToken(String token) {
@@ -30,6 +31,7 @@ public class TokenBlacklistServiceImpl  implements TokenBlacklistService {
         }
     }
 
+
     @Override
     public boolean isBlacklisted(String token) {
         try{
@@ -39,4 +41,35 @@ public class TokenBlacklistServiceImpl  implements TokenBlacklistService {
             return  false;
         }
     }
+
+    public void storeRefreshToken(String email, String refreshToken) {
+        try {
+            redisTemplate.opsForValue().set(
+                    REFRESH_PREFIX + email,
+                    refreshToken,
+                    12, TimeUnit.HOURS
+            );
+        } catch (Exception e) {
+            log.warn("Redis not available, skipping refresh token store");
+        }
+    }
+
+    public boolean isValidRefreshToken(String email, String token) {
+        try {
+            Object stored = redisTemplate.opsForValue().get(REFRESH_PREFIX + email);
+            return stored != null && stored.equals(token);
+        } catch (Exception e) {
+            log.warn("Redis not available, skipping refresh validation");
+            return false;
+        }
+    }
+
+    public void deleteRefreshToken(String email) {
+        try {
+            redisTemplate.delete(REFRESH_PREFIX + email);
+        } catch (Exception e) {
+            log.warn("Redis not available, skipping refresh delete");
+        }
+    }
+
 }
