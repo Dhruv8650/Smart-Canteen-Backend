@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -41,11 +42,13 @@ public class UserServiceImpl implements UserService {
 
         log.info("Registering user with email: {}", request.getEmail());
 
+        //  Check existing user
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             log.warn("Registration failed - email already exists: {}", request.getEmail());
             throw new EmailAlreadyExistException("Email already exists");
         }
 
+        //  Create user
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
@@ -54,10 +57,22 @@ public class UserServiceImpl implements UserService {
                 .isVerified(false)
                 .build();
 
+        //  Save user
         User savedUser = userRepository.save(user);
 
-        sendOtp(savedUser.getEmail(),OtpType.VERIFY_EMAIL );
+        log.info("User saved successfully, sending OTP asynchronously...");
 
+        //  Send OTP asynchronously
+        CompletableFuture.runAsync(() -> {
+            try {
+                sendOtp(savedUser.getEmail(), OtpType.VERIFY_EMAIL);
+                log.info("OTP sent successfully to {}", savedUser.getEmail());
+            } catch (Exception e) {
+                log.error("Failed to send OTP to {}: {}", savedUser.getEmail(), e.getMessage());
+            }
+        });
+
+        //  Return immediately (NO WAIT)
         log.info("User registered successfully with ID: {}", savedUser.getId());
 
         return savedUser;

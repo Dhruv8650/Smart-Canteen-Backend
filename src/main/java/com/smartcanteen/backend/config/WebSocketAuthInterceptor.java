@@ -72,12 +72,10 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             }
 
             String destination = accessor.getDestination();
-            String email = accessor.getUser().getName();
 
-            System.out.println("📡 SUBSCRIBE REQUEST: " + destination + " by " + email);
+            User user = (User) ((UsernamePasswordAuthenticationToken) accessor.getUser()).getPrincipal();
 
-            User user = userRepository.findByEmail(email)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+            System.out.println("📡 SUBSCRIBE REQUEST: " + destination + " by " + user.getEmail());
 
             // ADMIN TOPIC
             if (destination.equals("/topic/admin/orders")) {
@@ -92,6 +90,15 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 Long requestedUserId = Long.parseLong(destination.split("/")[3]);
 
                 if (!user.getId().equals(requestedUserId)) {
+                    throw new RuntimeException("Access denied");
+                }
+            }
+
+            if (destination.equals("/topic/orders")) {
+                if (user.getRole() != Role.ADMIN &&
+                        user.getRole() != Role.MANAGER &&
+                        user.getRole() != Role.KITCHEN) {
+
                     throw new RuntimeException("Access denied");
                 }
             }
