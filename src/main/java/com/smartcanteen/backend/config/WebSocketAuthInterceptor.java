@@ -73,33 +73,48 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
             String destination = accessor.getDestination();
 
+            if (destination == null) {
+                return message;
+            }
+
             User user = (User) ((UsernamePasswordAuthenticationToken) accessor.getUser()).getPrincipal();
 
-            System.out.println("📡 SUBSCRIBE REQUEST: " + destination + " by " + user.getEmail());
+            System.out.println("📡 SUBSCRIBE REQUEST: [" + destination + "] by " + user.getEmail());
+            System.out.println("ROLE: " + user.getRole());
 
-            // ADMIN TOPIC
-            if (destination.equals("/topic/admin/orders")) {
-                if (user.getRole() != Role.ADMIN &&
-                        user.getRole() != Role.MANAGER) {
+            //  SAFE MATCH (IMPORTANT)
+            if (destination.contains("/topic/orders")) {
+                if (!(user.getRole() == Role.ADMIN ||
+                        user.getRole() == Role.MANAGER ||
+                        user.getRole() == Role.KITCHEN)) {
+
                     throw new RuntimeException("Access denied");
                 }
+
+                return message; //  allow
             }
 
-            //USER-SPECIFIC TOPIC
-            if (destination.startsWith("/topic/user/")) {
-                Long requestedUserId = Long.parseLong(destination.split("/")[3]);
+            //  ADMIN TOPIC
+            if (destination.contains("/topic/admin/orders")) {
+                if (!(user.getRole() == Role.ADMIN ||
+                        user.getRole() == Role.MANAGER)) {
 
-                if (!user.getId().equals(requestedUserId)) {
                     throw new RuntimeException("Access denied");
                 }
+
+                return message;
             }
 
-            if (destination.equals("/topic/orders")) {
-                if (user.getRole() != Role.ADMIN &&
-                        user.getRole() != Role.MANAGER &&
-                        user.getRole() != Role.KITCHEN) {
+            //  USER TOPIC (SAFE PARSE)
+            if (destination.contains("/topic/user/")) {
+                try {
+                    Long requestedUserId = Long.parseLong(destination.split("/")[3]);
 
-                    throw new RuntimeException("Access denied");
+                    if (!user.getId().equals(requestedUserId)) {
+                        throw new RuntimeException("Access denied");
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("Invalid destination format");
                 }
             }
         }
