@@ -54,7 +54,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             //  IMPROVED: Add role as authority
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                            user.getEmail(),
+                            user,
                             null,
                             List.of(() -> "ROLE_" + user.getRole().name())
                     );
