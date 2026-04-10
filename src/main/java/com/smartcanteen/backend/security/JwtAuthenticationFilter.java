@@ -33,6 +33,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getServletPath();
 
+        if (
+                path.startsWith("/users/register") ||
+                        path.startsWith("/users/login") ||
+                        path.startsWith("/users/verify-email") ||
+                        path.startsWith("/users/verify-otp") ||
+                        path.startsWith("/users/resend-otp") ||
+                        path.startsWith("/users/forgot-password") ||
+                        path.startsWith("/users/reset-password")
+        ) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         if (path.startsWith("/ws-orders")) {
             filterChain.doFilter(request, response);
             return;

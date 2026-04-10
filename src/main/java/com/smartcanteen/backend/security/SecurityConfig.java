@@ -55,6 +55,7 @@ public class SecurityConfig {
                                 "/users/login",
                                 "/users/forgot-password",
                                 "/users/verify-otp",
+                                "/users/verify-email",
                                 "/users/reset-password",
                                 "/users/resend-otp",
                                 "/ws-orders/**",

@@ -252,44 +252,60 @@ public class UserServiceImpl implements UserService {
     @Override
     public void resendOtp(String email, OtpType type) {
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        System.out.println(" RESEND OTP CALLED: " + email + " TYPE: " + type);
 
-        //  Prevent spam (30 sec cooldown)
-        if (user.getLastOtpSentAt() != null &&
-                user.getLastOtpSentAt().plusSeconds(30).isAfter(LocalDateTime.now())) {
+        try {
 
-            throw new RuntimeException("Please wait before requesting another OTP");
+            User user = userRepository.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            System.out.println(" USER FOUND: " + user.getEmail());
+
+            //  Prevent spam
+            if (user.getLastOtpSentAt() != null &&
+                    user.getLastOtpSentAt().plusSeconds(30).isAfter(LocalDateTime.now())) {
+
+                throw new RuntimeException("Please wait before requesting another OTP");
+            }
+
+            String otp = String.valueOf(new Random().nextInt(900000) + 100000);
+
+            user.setOtpAttempts(0);
+            user.setLastOtpSentAt(LocalDateTime.now());
+
+            String subject;
+            String message;
+
+            if (type == OtpType.VERIFY_EMAIL) {
+
+                user.setVerifyOtp(otp);
+                user.setVerifyOtpExpiry(LocalDateTime.now().plusMinutes(5));
+
+                subject = "Email Verification OTP";
+                message = "Your verification OTP is: " + otp;
+
+            } else {
+
+                user.setResetOtp(otp);
+                user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(5));
+
+                subject = "Password Reset OTP";
+                message = "Your password reset OTP is: " + otp;
+            }
+
+            userRepository.save(user);
+
+            System.out.println(" SENDING EMAIL...");
+
+            emailService.sendEmail(email, subject, message);
+
+            System.out.println(" OTP SENT SUCCESSFULLY");
+
+        } catch (Exception e) {
+            System.out.println(" ERROR IN RESEND OTP:");
+            e.printStackTrace();
+            throw e;
         }
-
-        String otp = String.valueOf(new Random().nextInt(900000) + 100000);
-
-        user.setOtpAttempts(0);
-        user.setLastOtpSentAt(LocalDateTime.now());
-
-        String subject;
-        String message;
-
-        if (type == OtpType.VERIFY_EMAIL) {
-
-            user.setVerifyOtp(otp);
-            user.setVerifyOtpExpiry(LocalDateTime.now().plusMinutes(5));
-
-            subject = "Email Verification OTP";
-            message = "Your verification OTP is: " + otp;
-
-        } else {
-
-            user.setResetOtp(otp);
-            user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(5));
-
-            subject = "Password Reset OTP";
-            message = "Your password reset OTP is: " + otp;
-        }
-
-        userRepository.save(user);
-
-        emailService.sendEmail(email, subject, message);
     }
 
     public List<UserResponseDTO> getAllUsers() {
