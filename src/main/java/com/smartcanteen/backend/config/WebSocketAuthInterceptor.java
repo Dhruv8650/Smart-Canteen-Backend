@@ -27,31 +27,34 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
 
-        //  HANDLE CONNECT
+        //  RESTORE USER FIRST
+        if (accessor.getSessionAttributes() != null) {
+            Object sessionUser = accessor.getSessionAttributes().get("user");
+
+            if (sessionUser != null) {
+                accessor.setUser((UsernamePasswordAuthenticationToken) sessionUser);
+            }
+        }
+
+        //  CONNECT
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
 
-            // FIX: Support both header cases
             String authHeader = accessor.getFirstNativeHeader("Authorization");
 
             if (authHeader == null) {
                 authHeader = accessor.getFirstNativeHeader("authorization");
             }
 
-            //  DEBUG (optional - remove later)
-            System.out.println("Headers: " + accessor.toNativeHeaderMap());
-
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                 throw new RuntimeException("Missing or invalid Authorization header");
             }
 
             String token = authHeader.substring(7);
-
             String email = jwtService.extractEmail(token);
 
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            //  IMPROVED: Add role as authority
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
                             user,
@@ -61,60 +64,36 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
             accessor.setUser(authentication);
 
+            //  STORE IN SESSION
+            if (accessor.getSessionAttributes() != null) {
+                accessor.getSessionAttributes().put("user", authentication);
+            }
+
             System.out.println("👤 CONNECT USER: " + email);
         }
 
-        // HANDLE SUBSCRIBE
+        //  SUBSCRIBE
         if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
 
-            if (accessor.getUser() == null) {
+            UsernamePasswordAuthenticationToken authentication =
+                    (UsernamePasswordAuthenticationToken) accessor.getUser();
+
+            if (authentication == null) {
                 throw new RuntimeException("Unauthorized: No user in session");
             }
 
+            User user = (User) authentication.getPrincipal();
+
             String destination = accessor.getDestination();
 
-            if (destination == null) {
-                return message;
-            }
-
-            User user = (User) ((UsernamePasswordAuthenticationToken) accessor.getUser()).getPrincipal();
-
             System.out.println("📡 SUBSCRIBE REQUEST: [" + destination + "] by " + user.getEmail());
-            System.out.println("ROLE: " + user.getRole());
 
-            //  SAFE MATCH (IMPORTANT)
-            if (destination.contains("/topic/orders")) {
+            if (destination != null && destination.contains("/topic/orders")) {
                 if (!(user.getRole() == Role.ADMIN ||
                         user.getRole() == Role.MANAGER ||
                         user.getRole() == Role.KITCHEN)) {
 
                     throw new RuntimeException("Access denied");
-                }
-
-                return message; //  allow
-            }
-
-            //  ADMIN TOPIC
-            if (destination.contains("/topic/admin/orders")) {
-                if (!(user.getRole() == Role.ADMIN ||
-                        user.getRole() == Role.MANAGER)) {
-
-                    throw new RuntimeException("Access denied");
-                }
-
-                return message;
-            }
-
-            //  USER TOPIC (SAFE PARSE)
-            if (destination.contains("/topic/user/")) {
-                try {
-                    Long requestedUserId = Long.parseLong(destination.split("/")[3]);
-
-                    if (!user.getId().equals(requestedUserId)) {
-                        throw new RuntimeException("Access denied");
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException("Invalid destination format");
                 }
             }
         }
