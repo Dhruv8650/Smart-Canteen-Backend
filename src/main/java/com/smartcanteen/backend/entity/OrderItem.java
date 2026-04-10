@@ -23,6 +23,7 @@ public class OrderItem {
     @Column(nullable = false)
     private Integer quantity;
 
+
     public OrderItem() {}
 
     // Getters & Setters

@@ -29,6 +29,12 @@ public class FoodItem {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @Column(name = "is_prepared_item")
+    private Boolean isPreparedItem = false;
+
+    @Column(name = "max_per_order")
+    private Integer maxPerOrder;
+
     public FoodItem() {}
 
 
@@ -53,6 +59,12 @@ public class FoodItem {
     public String getImageUrl() {
         return imageUrl;
     }
+    public Boolean getIsPreparedItem() {
+        return isPreparedItem;
+    }
+    public Integer getMaxPerOrder() {
+        return maxPerOrder;
+    }
 
     // Setters
     public void setName(String name) { this.name = name; }
@@ -61,5 +73,11 @@ public class FoodItem {
     public void setAvailable(boolean available) { this.available = available; }
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+    public void setIsPreparedItem(Boolean isPreparedItem) {
+        this.isPreparedItem = isPreparedItem;
+    }
+    public void setMaxPerOrder(Integer maxPerOrder) {
+        this.maxPerOrder = maxPerOrder;
     }
 }

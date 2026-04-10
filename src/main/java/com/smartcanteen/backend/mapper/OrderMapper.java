@@ -24,28 +24,32 @@ public class OrderMapper {
                 order.getUser().isActive()
         );
 
-        // ORDER ITEMS → FOOD DTOs (with null safety)
+        // ORDER ITEMS → FOOD DTOs (UPDATED ✅)
         List<FoodItemResponseDTO> foodDTOs = order.getOrderItems()
                 .stream()
-                .map(orderItem -> new FoodItemResponseDTO(
-                        orderItem.getFoodItem().getId(),
-                        orderItem.getFoodItem().getName(),
-                        orderItem.getFoodItem().getCategory(),
-                        orderItem.getFoodItem().getPrice(),
-                        orderItem.getFoodItem().isAvailable(),
-                        orderItem.getFoodItem() != null
-                                ? orderItem.getFoodItem().getImageUrl()
-                                : null
-                ))
+                .map(orderItem -> {
+                    var food = orderItem.getFoodItem();
+
+                    return new FoodItemResponseDTO(
+                            food.getId(),
+                            food.getName(),
+                            food.getCategory(),
+                            food.getPrice(),
+                            food.isAvailable(),
+                            food.getImageUrl(),
+                            food.getIsPreparedItem(),
+                            food.getMaxPerOrder()
+                    );
+                })
                 .toList();
 
-        // TIME CALCULATION (FIXED)
+        // TIME CALCULATION
         Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now());
 
         long minutes = duration.toMinutes();
         long seconds = duration.minusMinutes(minutes).getSeconds();
 
-        //  STATUS LABEL (UI LOGIC)
+        // STATUS LABEL
         String statusLabel;
 
         if (minutes > 10) {
@@ -56,7 +60,7 @@ public class OrderMapper {
             statusLabel = "ON_TIME";
         }
 
-        // ITEM SUMMARY (IMPROVED UX)
+        // ITEM SUMMARY
         int itemCount = order.getOrderItems().size();
         String summary = itemCount +
                 (itemCount == 1 ? " item • ₹" : " items • ₹") +
@@ -85,7 +89,7 @@ public class OrderMapper {
         );
     }
 
-    // FORMAT STATUS (UPDATED)
+    // FORMAT STATUS
     private static String formatStatus(String status) {
         return switch (status) {
             case "PENDING" -> "Pending";

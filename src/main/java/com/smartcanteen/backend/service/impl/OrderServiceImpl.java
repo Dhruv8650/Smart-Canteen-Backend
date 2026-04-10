@@ -145,6 +145,17 @@ public class OrderServiceImpl implements OrderService {
                                     "Food item not found with id: " + foodId
                             ));
 
+                    if (Boolean.TRUE.equals(food.getIsPreparedItem())) {
+
+                        if (food.getMaxPerOrder() != null &&
+                                quantity > food.getMaxPerOrder()) {
+
+                            throw new RuntimeException(
+                                    "You can only order " + food.getMaxPerOrder() + " " + food.getName()
+                            );
+                        }
+                    }
+
                     OrderItem orderItem = new OrderItem();
                     orderItem.setFoodItem(food);
                     orderItem.setQuantity(quantity);

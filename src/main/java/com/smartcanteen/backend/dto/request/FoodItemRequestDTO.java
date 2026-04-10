@@ -13,4 +13,6 @@ public class FoodItemRequestDTO{
     FoodCategory foodCategory;
     BigDecimal price;
     String imageUrl;
+    private Boolean isPreparedItem;
+    private Integer maxPerOrder;
 }

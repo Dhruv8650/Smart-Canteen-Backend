@@ -15,4 +15,6 @@ public class FoodItemResponseDTO{
     BigDecimal price;
     boolean available;
     String imageUrl;
+    Boolean isPreparedItem;
+    Integer maxPerOrder;
 }

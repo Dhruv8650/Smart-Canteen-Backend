@@ -31,6 +31,8 @@ public class FoodServiceImpl implements FoodService {
         food.setCategory(request.getFoodCategory());
         food.setPrice(request.getPrice());
         food.setImageUrl(request.getImageUrl());
+        food.setIsPreparedItem(request.getIsPreparedItem());
+        food.setMaxPerOrder(request.getMaxPerOrder());
 
         FoodItem saved = foodItemRepository.save(food);
 
@@ -54,6 +56,8 @@ public class FoodServiceImpl implements FoodService {
         food.setName(request.getName());
         food.setCategory(request.getFoodCategory());
         food.setPrice(request.getPrice());
+        food.setIsPreparedItem(request.getIsPreparedItem());
+        food.setMaxPerOrder(request.getMaxPerOrder());
         //update image only if provided
         if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
             food.setImageUrl(request.getImageUrl());
@@ -164,7 +168,9 @@ public class FoodServiceImpl implements FoodService {
                 food.getCategory(),
                 food.getPrice(),
                 food.isAvailable(),
-                food.getImageUrl()
+                food.getImageUrl(),
+                food.getIsPreparedItem(),
+                food.getMaxPerOrder()
         );
     }
 }
