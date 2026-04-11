@@ -62,17 +62,15 @@ public class UserServiceImpl implements UserService {
         log.info("User saved successfully, sending OTP asynchronously...");
 
         //  Send OTP asynchronously
-        try {
-            log.info("Sending OTP to {}", savedUser.getEmail());
-
-            sendOtp(savedUser.getEmail(), OtpType.VERIFY_EMAIL);
-
-            log.info("OTP sent successfully to {}", savedUser.getEmail());
-
-        } catch (Exception e) {
-            log.error(" OTP sending failed: {}", e.getMessage());
-            e.printStackTrace();
-        }
+        CompletableFuture.runAsync(() -> {
+            try {
+                log.info("Sending OTP to {}", savedUser.getEmail());
+                sendOtp(savedUser.getEmail(), OtpType.VERIFY_EMAIL);
+                log.info("OTP sent successfully");
+            } catch (Exception e) {
+                log.error("OTP send failed: {}", e.getMessage());
+            }
+        });
 
         //  Return immediately (NO WAIT)
         log.info("User registered successfully with ID: {}", savedUser.getId());
@@ -164,6 +162,8 @@ public class UserServiceImpl implements UserService {
     @Override
     public void sendOtp(String email, OtpType type) {
 
+        log.info("Generating OTP for {}", email);
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
@@ -190,7 +190,28 @@ public class UserServiceImpl implements UserService {
                 ? "Use this OTP to verify your email: " + otp
                 : "Use this OTP to reset your password: " + otp;
 
+        log.info("Sending email to {}", email);
+
         emailService.sendEmail(email, subject, message);
+
+        log.info("Email sent to {}", email);
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        //  ASYNC (CRITICAL FIX)
+        CompletableFuture.runAsync(() -> {
+            try {
+                sendOtp(email, OtpType.RESET_PASSWORD);
+                log.info("Reset OTP sent to {}", email);
+            } catch (Exception e) {
+                log.error("Reset OTP failed: {}", e.getMessage());
+            }
+        });
     }
 
     @Override

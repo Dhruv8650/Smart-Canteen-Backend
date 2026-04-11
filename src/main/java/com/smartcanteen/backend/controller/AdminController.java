@@ -124,6 +124,22 @@ public class AdminController {
         canteenService.closeCanteen();
         return ResponseEntity.ok("Canteen closed");
     }
+
+    @PatchMapping("/orders/{orderId}/reject")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> rejectOrder(
+            @PathVariable Long orderId) {
+
+        OrderResponseDTO response = orderService.rejectOrder(orderId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<OrderResponseDTO>builder()
+                        .success(true)
+                        .message("Order rejected successfully")
+                        .data(response)
+                        .build()
+        );
+    }
     @GetMapping("/canteen/status")
     public ResponseEntity<ApiResponse<Boolean>> getCanteenStatus() {
 

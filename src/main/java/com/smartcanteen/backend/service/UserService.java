@@ -31,4 +31,6 @@ public interface UserService {
     UserResponseDTO getUserByEmail(String email);
 
     void verifyEmail(String email, String otp);
+
+    void forgotPassword(String email);
 }

@@ -103,7 +103,7 @@ public class UserController {
     public ResponseEntity<ApiResponse<String>> forgotPassword(
             @RequestBody ForgotPasswordRequestDTO request) {
 
-        userService.sendOtp(request.getEmail(), OtpType.RESET_PASSWORD );
+        userService.forgotPassword(request.getEmail());
 
         return ResponseEntity.ok(
                 ApiResponse.<String>builder()

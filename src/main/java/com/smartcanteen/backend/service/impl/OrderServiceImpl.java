@@ -182,11 +182,51 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
 
-        // 🔹 MAP TO DTO
+        //  MAP TO DTO
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
         //  EVENT (WebSocket / realtime)
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
+
+        return response;
+    }
+
+    @Transactional
+    @Override
+    public OrderResponseDTO rejectOrder(Long orderId) {
+
+        log.info("Rejecting order: {}", orderId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+
+        //  ROLE CHECK
+        if (!SecurityUtils.isAdmin() && !SecurityUtils.isManager()) {
+            throw new AccessDeniedException("Only admin or manager can reject orders");
+        }
+
+        //  Prevent invalid states
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            throw new IllegalStateException("Cannot reject completed order");
+        }
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("Order already cancelled");
+        }
+
+
+        validateStatusTransition(order.getStatus(), OrderStatus.CANCELLED);
+
+        order.setStatus(OrderStatus.CANCELLED);
+
+        Order updated = orderRepository.save(order);
+
+        OrderResponseDTO response = OrderMapper.toDTO(updated);
+
+        //  REAL-TIME UPDATE
+        eventPublisher.publishEvent(new OrderStatusUpdatedEvent(response));
+
+        log.info("Order {} rejected successfully", orderId);
 
         return response;
     }

@@ -27,4 +27,6 @@ public interface OrderService {
     OrderResponseDTO approvePayment(Long orderId);
 
     void cancelOrder(Long orderId);
+
+    OrderResponseDTO rejectOrder(Long orderId);
 }
