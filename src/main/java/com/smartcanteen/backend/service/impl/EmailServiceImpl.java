@@ -26,7 +26,9 @@ public class EmailServiceImpl implements EmailService {
         message.setFrom(fromEmail);
 
         try {
-            System.out.println(" Sending email to: " + to);
+            System.out.println("📧 Sending email...");
+            System.out.println("FROM: " + fromEmail);
+            System.out.println("TO: " + to);
 
             mailSender.send(message);
 
