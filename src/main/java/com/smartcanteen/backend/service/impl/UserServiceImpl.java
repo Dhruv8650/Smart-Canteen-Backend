@@ -62,14 +62,17 @@ public class UserServiceImpl implements UserService {
         log.info("User saved successfully, sending OTP asynchronously...");
 
         //  Send OTP asynchronously
-        CompletableFuture.runAsync(() -> {
-            try {
-                sendOtp(savedUser.getEmail(), OtpType.VERIFY_EMAIL);
-                log.info("OTP sent successfully to {}", savedUser.getEmail());
-            } catch (Exception e) {
-                log.error("Failed to send OTP to {}: {}", savedUser.getEmail(), e.getMessage());
-            }
-        });
+        try {
+            log.info("Sending OTP to {}", savedUser.getEmail());
+
+            sendOtp(savedUser.getEmail(), OtpType.VERIFY_EMAIL);
+
+            log.info("OTP sent successfully to {}", savedUser.getEmail());
+
+        } catch (Exception e) {
+            log.error(" OTP sending failed: {}", e.getMessage());
+            e.printStackTrace();
+        }
 
         //  Return immediately (NO WAIT)
         log.info("User registered successfully with ID: {}", savedUser.getId());
