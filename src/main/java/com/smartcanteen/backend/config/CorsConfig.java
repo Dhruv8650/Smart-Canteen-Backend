@@ -21,8 +21,9 @@ public class CorsConfig {
                 "http://localhost:5173",
                 "http://localhost:5500",
                 "http://127.0.0.1:5500",
-                "https://*.ngrok-free.dev",   // 🔥 IMPORTANT
-                "https://*.ngrok-free.app"
+                "https://*.ngrok-free.dev",
+                "https://*.ngrok-free.app",
+                "https://smart-canteen-management-system-scms.onrender.com"
         ));
 
         config.setAllowedMethods(List.of(
