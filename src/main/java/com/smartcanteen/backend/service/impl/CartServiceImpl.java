@@ -49,8 +49,26 @@ public class CartServiceImpl implements CartService {
                 .findFirst()
                 .orElse(null);
 
+        int newQuantity = request.getQuantity();
+
         if (cartItem != null) {
-            cartItem.setQuantity(cartItem.getQuantity() + request.getQuantity());
+            newQuantity = cartItem.getQuantity() + request.getQuantity();
+        }
+
+        //  MAX PER ORDER VALIDATION
+        if (Boolean.TRUE.equals(foodItem.getIsPreparedItem())) {
+
+            if (foodItem.getMaxPerOrder() != null &&
+                    newQuantity > foodItem.getMaxPerOrder()) {
+
+                throw new IllegalArgumentException(
+                        "You can only add " + foodItem.getMaxPerOrder() + " " + foodItem.getName() + " to cart"
+                );
+            }
+        }
+
+        if (cartItem != null) {
+            cartItem.setQuantity(newQuantity);
         } else {
             CartItem newItem = new CartItem();
             newItem.setFoodItem(foodItem);
@@ -94,7 +112,7 @@ public class CartServiceImpl implements CartService {
         return new CartResponseDTO(items, total);
     }
 
-    // 🔹 REMOVE ITEM
+    //  REMOVE ITEM
     @Override
     @Transactional
     public void removeItem(Long cartItemId, User user) {
@@ -129,6 +147,20 @@ public class CartServiceImpl implements CartService {
 
         if (!cartItem.getCart().getId().equals(cart.getId())) {
             throw new RuntimeException("Unauthorized action");
+        }
+
+        FoodItem foodItem = cartItem.getFoodItem();
+
+        //  MAX PER ORDER VALIDATION
+        if (Boolean.TRUE.equals(foodItem.getIsPreparedItem())) {
+
+            if (foodItem.getMaxPerOrder() != null &&
+                    quantity > foodItem.getMaxPerOrder()) {
+
+                throw new IllegalArgumentException(
+                        "You can only add " + foodItem.getMaxPerOrder() + " " + foodItem.getName() + " to cart"
+                );
+            }
         }
 
         cartItem.setQuantity(quantity);
@@ -170,7 +202,7 @@ public class CartServiceImpl implements CartService {
         return response;
     }
 
-    //  HELPER METHOD
+    //  HELPER
     private Cart createNewCart(User user) {
         Cart cart = new Cart();
         cart.setUser(user);

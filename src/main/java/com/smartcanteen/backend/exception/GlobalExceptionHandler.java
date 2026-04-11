@@ -75,7 +75,15 @@ public class GlobalExceptionHandler {
         return buildResponse(ex, HttpStatus.BAD_REQUEST, request);
     }
 
-    // 🔥 FINAL FALLBACK
+    @ExceptionHandler(MaxOrderLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxLimit(
+            MaxOrderLimitExceededException ex,
+            HttpServletRequest request) {
+
+        return buildResponse(ex, HttpStatus.BAD_REQUEST, request);
+    }
+
+    //  FINAL FALLBACK
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleAll(
             Exception ex,
@@ -84,7 +92,7 @@ public class GlobalExceptionHandler {
         return buildResponse(ex, HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
-    // 🔥 COMMON METHOD
+    //  COMMON METHOD
     private ResponseEntity<ErrorResponse> buildResponse(
             Exception ex,
             HttpStatus status,

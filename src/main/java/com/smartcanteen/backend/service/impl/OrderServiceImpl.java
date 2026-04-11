@@ -6,6 +6,7 @@ import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.websocket.OrderCreatedEvent;
 import com.smartcanteen.backend.entity.*;
 import com.smartcanteen.backend.events.OrderStatusUpdatedEvent;
+import com.smartcanteen.backend.exception.MaxOrderLimitExceededException;
 import com.smartcanteen.backend.exception.OrderNotFoundException;
 import com.smartcanteen.backend.exception.UserNotFoundException;
 import com.smartcanteen.backend.mapper.OrderMapper;
@@ -150,7 +151,7 @@ public class OrderServiceImpl implements OrderService {
                         if (food.getMaxPerOrder() != null &&
                                 quantity > food.getMaxPerOrder()) {
 
-                            throw new RuntimeException(
+                            throw new MaxOrderLimitExceededException(
                                     "You can only order " + food.getMaxPerOrder() + " " + food.getName()
                             );
                         }
@@ -167,7 +168,7 @@ public class OrderServiceImpl implements OrderService {
 
         order.setOrderItems(orderItems);
 
-        // 🔹 STEP 3: TOTAL CALCULATION
+        //  STEP 3: TOTAL CALCULATION
         BigDecimal total = orderItems.stream()
                 .map(item -> item.getFoodItem()
                         .getPrice()
@@ -176,7 +177,7 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(total);
 
-        // 🔹 SAVE ORDER
+        //  SAVE ORDER
         Order saved = orderRepository.save(order);
 
         log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
@@ -184,7 +185,7 @@ public class OrderServiceImpl implements OrderService {
         // 🔹 MAP TO DTO
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
-        // 🔹 EVENT (WebSocket / realtime)
+        //  EVENT (WebSocket / realtime)
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         return response;
