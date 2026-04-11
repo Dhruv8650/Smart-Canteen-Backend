@@ -52,8 +52,15 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                     newUser.setName(name);
                     newUser.setRole(Role.USER);
                     newUser.setPassword(UUID.randomUUID().toString());
+                    newUser.setVerified(true);
+
                     return userRepository.save(newUser);
                 });
+
+        if (!user.isVerified()) {
+            user.setVerified(true);
+            userRepository.save(user);
+        }
 
         //  Generate JWT
         String token = jwtService.generateToken(user.getEmail());
