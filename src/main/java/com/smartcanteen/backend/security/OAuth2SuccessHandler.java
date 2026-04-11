@@ -4,6 +4,7 @@ import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.entity.User;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.JwtService;
+import com.smartcanteen.backend.service.TokenBlacklistService;
 import jakarta.servlet.http.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +22,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final UserRepository userRepository;
     private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
@@ -42,7 +44,6 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         System.out.println("GOOGLE LOGIN SUCCESS: " + email);
 
-        //  Save user if not exists
         String normalizedEmail = email.trim().toLowerCase();
 
         User user = userRepository.findByEmail(normalizedEmail)
@@ -53,7 +54,6 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
                     newUser.setRole(Role.USER);
                     newUser.setPassword(UUID.randomUUID().toString());
                     newUser.setVerified(true);
-
                     return userRepository.save(newUser);
                 });
 
@@ -62,11 +62,19 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             userRepository.save(user);
         }
 
-        //  Generate JWT
-        String token = jwtService.generateToken(user.getEmail());
+        //  GENERATE BOTH TOKENS
+        String accessToken = jwtService.generateToken(user.getEmail());
+        String refreshToken = jwtService.generateRefreshToken(user.getEmail());
 
-        //  Redirect to frontend
-        String redirectUrl = frontendUrl + "/oauth-success?token=" + token;
+        //  STORE refresh token in Redis
+        tokenBlacklistService.storeRefreshToken(user.getEmail(), refreshToken);
+
+        //  SEND BOTH TO FRONTEND
+        String redirectUrl = frontendUrl
+                + "/oauth-success?token=" + accessToken
+                + "&refreshToken=" + refreshToken;
+
+        System.out.println("FINAL REDIRECT: " + redirectUrl);
 
         response.sendRedirect(redirectUrl);
     }
