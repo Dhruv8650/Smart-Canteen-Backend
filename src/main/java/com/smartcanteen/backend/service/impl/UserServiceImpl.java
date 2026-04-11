@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -166,14 +167,14 @@ public class UserServiceImpl implements UserService {
         String otp = String.valueOf(new Random().nextInt(900000) + 100000);
 
         user.setOtpAttempts(0);
-        user.setLastOtpSentAt(LocalDateTime.now());
+        user.setLastOtpSentAt(LocalDateTime.now(ZoneOffset.UTC));
 
         if (type == OtpType.VERIFY_EMAIL) {
             user.setVerifyOtp(otp);
-            user.setVerifyOtpExpiry(LocalDateTime.now().plusMinutes(5));
+            user.setVerifyOtpExpiry(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
         } else {
             user.setResetOtp(otp);
-            user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(5));
+            user.setResetOtpExpiry(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
         }
 
         userRepository.save(user);
@@ -194,24 +195,24 @@ public class UserServiceImpl implements UserService {
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
+        System.out.println("EMAIL: " + email);
 
         if (user.getOtpAttempts() >= 3) {
-            throw new RuntimeException("Maximum OTP attempts exceeded");
+            throw new IllegalStateException("Maximum OTP attempts exceeded");
         }
 
-        if (user.getVerifyOtpExpiry().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("OTP expired");
+        if (user.getVerifyOtpExpiry().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
+            throw new IllegalArgumentException("OTP expired");
         }
 
         if (!otp.equals(user.getVerifyOtp())) {
             user.setOtpAttempts(user.getOtpAttempts() + 1);
             userRepository.save(user);
-            throw new RuntimeException("Invalid OTP");
+            throw new IllegalArgumentException("Invalid OTP");
         }
 
         // SUCCESS
         user.setVerified(true);
-
         user.setVerifyOtp(null);
         user.setVerifyOtpExpiry(null);
         user.setOtpAttempts(0);
@@ -226,17 +227,17 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         if (user.getOtpAttempts() >= 3) {
-            throw new RuntimeException("Maximum OTP attempts exceeded");
+            throw new IllegalStateException("Maximum OTP attempts exceeded");
         }
 
         if (user.getResetOtpExpiry().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("OTP expired");
+            throw new IllegalArgumentException("OTP expired");
         }
 
         if (!otp.equals(user.getResetOtp())) {
             user.setOtpAttempts(user.getOtpAttempts() + 1);
             userRepository.save(user);
-            throw new RuntimeException("Invalid OTP");
+            throw new IllegalArgumentException("Invalid OTP");
         }
 
         // SUCCESS
@@ -271,7 +272,7 @@ public class UserServiceImpl implements UserService {
             String otp = String.valueOf(new Random().nextInt(900000) + 100000);
 
             user.setOtpAttempts(0);
-            user.setLastOtpSentAt(LocalDateTime.now());
+            user.setLastOtpSentAt(LocalDateTime.now(ZoneOffset.UTC));
 
             String subject;
             String message;
@@ -279,7 +280,7 @@ public class UserServiceImpl implements UserService {
             if (type == OtpType.VERIFY_EMAIL) {
 
                 user.setVerifyOtp(otp);
-                user.setVerifyOtpExpiry(LocalDateTime.now().plusMinutes(5));
+                user.setVerifyOtpExpiry(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
 
                 subject = "Email Verification OTP";
                 message = "Your verification OTP is: " + otp;
@@ -287,7 +288,7 @@ public class UserServiceImpl implements UserService {
             } else {
 
                 user.setResetOtp(otp);
-                user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(5));
+                user.setResetOtpExpiry(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5));
 
                 subject = "Password Reset OTP";
                 message = "Your password reset OTP is: " + otp;
