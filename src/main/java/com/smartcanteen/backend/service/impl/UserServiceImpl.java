@@ -182,17 +182,36 @@ public class UserServiceImpl implements UserService {
 
         userRepository.save(user);
 
+        //  SUBJECT
         String subject = (type == OtpType.VERIFY_EMAIL)
                 ? "Email Verification OTP"
                 : "Password Reset OTP";
 
-        String message = (type == OtpType.VERIFY_EMAIL)
-                ? "Use this OTP to verify your email: " + otp
-                : "Use this OTP to reset your password: " + otp;
+        //  REPLACE message WITH HTML BODY
+        String body = """
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2 style="color: #2c3e50;">Smart Canteen</h2>
+    
+          <p>Your One-Time Password (OTP) is:</p>
+    
+          <h1 style="letter-spacing: 5px; color: #27ae60;">%s</h1>
+    
+          <p>This OTP is valid for 5 minutes.</p>
+    
+          <p>If you did not request this, please ignore this email.</p>
+    
+          <hr/>
+    
+          <p style="font-size: 12px; color: gray;">
+            © Smart Canteen
+          </p>
+        </div>
+        """.formatted(otp);
 
         log.info("Sending email to {}", email);
 
-        emailService.sendEmail(email, subject, message);
+        //  SEND HTML (NOT plain text)
+        emailService.sendEmail(email, subject, body);
 
         log.info("Email sent to {}", email);
     }

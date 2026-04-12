@@ -3,36 +3,50 @@ package com.smartcanteen.backend.service.impl;
 import com.smartcanteen.backend.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 
-    private final JavaMailSender mailSender;
+    @Value("${brevo.api.key}")
+    private String apiKey;
 
-    @Value("${spring.mail.username}")
-    private String fromEmail;
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
     public void sendEmail(String to, String subject, String body) {
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(body);
-        message.setFrom(fromEmail);
+        String url = "https://api.brevo.com/v3/smtp/email";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("api-key", apiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        String requestBody = """
+        {
+          "sender": { "email": "mycanteen00@gmail.com", "name": "Smart Canteen" },
+          "to": [{ "email": "%s" }],
+          "subject": "%s",
+          "htmlContent": "%s",
+          "textContent": "%s"
+        }
+        """.formatted(to, subject, body, body);
+
+        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         try {
-            System.out.println("📧 Sending email...");
-            System.out.println("FROM: " + fromEmail);
-            System.out.println("TO: " + to);
+            System.out.println("📧 Sending email via Brevo API...");
 
-            mailSender.send(message);
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    url,
+                    request,
+                    String.class
+            );
 
-            System.out.println(" Email sent successfully");
+            System.out.println(" Email sent: " + response.getStatusCode());
 
         } catch (Exception e) {
             System.out.println(" EMAIL ERROR: " + e.getMessage());
