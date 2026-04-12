@@ -166,19 +166,29 @@ public class UserController {
     public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
 
         String refreshToken = request.get("refreshToken");
+        System.out.println("REFRESH TOKEN RECEIVED: " + refreshToken);
 
-        String email = jwtService.extractEmail(refreshToken);
-
-        // VALIDATE FROM REDIS
-        if (!tokenBlacklistService.isValidRefreshToken(email, refreshToken)) {
-            throw new RuntimeException("Invalid refresh token");
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            throw new IllegalArgumentException("Refresh token is required");
         }
 
-        String newAccessToken = jwtService.generateToken(email);
+        try {
+            String email = jwtService.extractEmail(refreshToken);
+            System.out.println("EMAIL FROM REFRESH: " + email);
 
-        return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
+            // VALIDATE FROM REDIS
+            if (!tokenBlacklistService.isValidRefreshToken(email, refreshToken)) {
+                throw new IllegalArgumentException("Invalid refresh token");
+            }
+
+            String newAccessToken = jwtService.generateToken(email);
+
+            return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
+
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid or expired refresh token");
+        }
     }
-
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponseDTO>> getCurrentUser(Authentication authentication) {
 

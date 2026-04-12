@@ -40,7 +40,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.startsWith("/users/verify-otp") ||
                         path.startsWith("/users/resend-otp") ||
                         path.startsWith("/users/forgot-password") ||
-                        path.startsWith("/users/reset-password")
+                        path.startsWith("/users/reset-password") ||
+                        path.startsWith("/users/refresh")
         ) {
             filterChain.doFilter(request, response);
             return;
