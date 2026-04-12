@@ -7,6 +7,10 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
@@ -22,23 +26,30 @@ public class EmailServiceImpl implements EmailService {
         String url = "https://api.brevo.com/v3/smtp/email";
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("api-key", apiKey);
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("api-key", apiKey);
 
-        String requestBody = """
-        {
-          "sender": { "email": "mycanteen00@gmail.com", "name": "Smart Canteen" },
-          "to": [{ "email": "%s" }],
-          "subject": "%s",
-          "htmlContent": "%s",
-          "textContent": "%s"
-        }
-        """.formatted(to, subject, body, body);
+        // ✅ Build request body as OBJECT (not string)
+        Map<String, Object> requestBody = new HashMap<>();
 
-        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
+        requestBody.put("sender", Map.of(
+                "name", "Smart Canteen",
+                "email", "mycanteen00@gmail.com" // must be verified in Brevo
+        ));
+
+        requestBody.put("to", List.of(
+                Map.of("email", to)
+        ));
+
+        requestBody.put("subject", subject);
+        requestBody.put("htmlContent", body);
+        requestBody.put("textContent", body);
+
+        HttpEntity<Map<String, Object>> request =
+                new HttpEntity<>(requestBody, headers);
 
         try {
-            System.out.println("📧 Sending email via Brevo API...");
+            System.out.println(" Sending email via Brevo API...");
 
             ResponseEntity<String> response = restTemplate.postForEntity(
                     url,
@@ -50,7 +61,7 @@ public class EmailServiceImpl implements EmailService {
 
         } catch (Exception e) {
             System.out.println(" EMAIL ERROR: " + e.getMessage());
-            e.printStackTrace();
+            throw new RuntimeException("Email sending failed", e); // 🔥 important
         }
     }
 }
