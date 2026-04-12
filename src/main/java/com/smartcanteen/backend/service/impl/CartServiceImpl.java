@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -43,8 +44,14 @@ public class CartServiceImpl implements CartService {
         Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseGet(() -> createNewCart(user));
 
-        CartItem cartItem = cart.getCartItems()
-                .stream()
+        List<CartItem> cartItems = cart.getCartItems();
+
+        if (cartItems == null) {
+            cartItems = new ArrayList<>();
+            cart.setCartItems(cartItems);
+        }
+
+        CartItem cartItem = cartItems.stream()
                 .filter(item -> item.getFoodItem().getId().equals(foodItem.getId()))
                 .findFirst()
                 .orElse(null);
@@ -88,18 +95,24 @@ public class CartServiceImpl implements CartService {
         Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseGet(() -> createNewCart(user));
 
-        List<CartItemResponseDTO> items = cart.getCartItems()
-                .stream()
+        List<CartItem> cartItems = cart.getCartItems() != null
+                ? cart.getCartItems()
+                : List.of(); // null-safe
+
+        List<CartItemResponseDTO> items = cartItems.stream()
+                .filter(ci -> ci.getFoodItem() != null) // safety
                 .map(cartItem -> {
-                    BigDecimal subtotal = cartItem.getFoodItem()
-                            .getPrice()
-                            .multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+
+                    BigDecimal price = cartItem.getFoodItem().getPrice();
+                    int quantity = cartItem.getQuantity();
+
+                    BigDecimal subtotal = price.multiply(BigDecimal.valueOf(quantity));
 
                     return new CartItemResponseDTO(
                             cartItem.getFoodItem().getId(),
                             cartItem.getFoodItem().getName(),
-                            cartItem.getFoodItem().getPrice(),
-                            cartItem.getQuantity(),
+                            price,
+                            quantity,
                             subtotal
                     );
                 })
@@ -174,7 +187,7 @@ public class CartServiceImpl implements CartService {
         Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
 
-        if (cart.getCartItems().isEmpty()) {
+        if (cart.getCartItems() == null ||cart.getCartItems().isEmpty()) {
             throw new IllegalStateException("Cart is empty");
         }
 
