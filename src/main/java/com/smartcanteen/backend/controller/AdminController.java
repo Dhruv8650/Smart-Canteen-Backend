@@ -4,6 +4,8 @@ import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.UpdateUserRoleDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
+import com.smartcanteen.backend.entity.Canteen;
+import com.smartcanteen.backend.entity.CanteenStatus;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.service.CanteenService;
@@ -14,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -113,17 +116,6 @@ public class AdminController {
                         .build()
         );
     }
-    @PostMapping("/canteen/open")
-    public ResponseEntity<String> openCanteen() {
-        canteenService.openCanteen();
-        return ResponseEntity.ok("Canteen opened");
-    }
-
-    @PostMapping("/canteen/close")
-    public ResponseEntity<String> closeCanteen() {
-        canteenService.closeCanteen();
-        return ResponseEntity.ok("Canteen closed");
-    }
 
     @PatchMapping("/orders/{orderId}/reject")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
@@ -140,17 +132,34 @@ public class AdminController {
                         .build()
         );
     }
-    @GetMapping("/canteen/status")
-    public ResponseEntity<ApiResponse<Boolean>> getCanteenStatus() {
 
-        boolean isOpen = canteenService.isCanteenOpen();
+    @PostMapping("/canteen/opening")
+    public ResponseEntity<String> opening() {
+        canteenService.startOpening();
+        return ResponseEntity.ok("Opening started");
+    }
 
-        return ResponseEntity.ok(
-                ApiResponse.<Boolean>builder()
-                        .success(true)
-                        .message("Canteen status fetched")
-                        .data(isOpen)
-                        .build()
-        );
+    @PostMapping("/canteen/open")
+    public ResponseEntity<String> open() {
+        canteenService.setOpen();
+        return ResponseEntity.ok("Canteen is now OPEN");
+    }
+
+    @PostMapping("/canteen/closing-soon")
+    public ResponseEntity<String> closingSoon() {
+        canteenService.startClosingSoon();
+        return ResponseEntity.ok("Closing soon started");
+    }
+
+    @PostMapping("/canteen/closing")
+    public ResponseEntity<String> closing() {
+        canteenService.startClosing();
+        return ResponseEntity.ok("Canteen is closing");
+    }
+
+    @PostMapping("/canteen/closed")
+    public ResponseEntity<String> closed() {
+        canteenService.setClosed();
+        return ResponseEntity.ok("Canteen closed");
     }
 }

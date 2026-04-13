@@ -88,9 +88,9 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
 
         // CANTEEN CHECK
-        if (!canteenService.isCanteenOpen()) {
+        if (!canteenService.canAcceptOrders()) {
             log.warn("Order blocked - canteen is closed for user: {}", userEmail);
-            throw new RuntimeException("Canteen is closed. Orders are not allowed.");
+            throw new RuntimeException("Canteen is not accepting orders");
         }
 
         log.info("Placing order for user: {}", userEmail);

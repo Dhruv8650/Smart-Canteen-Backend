@@ -3,6 +3,7 @@ package com.smartcanteen.backend.controller;
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.entity.OrderStatus;
+import com.smartcanteen.backend.service.CanteenService;
 import com.smartcanteen.backend.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import java.util.List;
 public class ManagerController {
 
     private final OrderService orderService;
+    private CanteenService canteenService;
 
     // ONLY COMPLETE ORDER
     @PatchMapping("/{orderId}/complete")
@@ -60,5 +62,11 @@ public class ManagerController {
                         .data(orders)
                         .build()
         );
+    }
+
+    @PostMapping("/canteen/manager-ready")
+    public ResponseEntity<String> managerReady() {
+        canteenService.setManagerReady();
+        return ResponseEntity.ok("Manager is ready");
     }
 }

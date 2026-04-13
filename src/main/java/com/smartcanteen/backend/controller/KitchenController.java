@@ -3,6 +3,7 @@ package com.smartcanteen.backend.controller;
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.entity.OrderStatus;
+import com.smartcanteen.backend.service.CanteenService;
 import com.smartcanteen.backend.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import java.util.List;
 public class KitchenController {
 
     private final OrderService orderService;
+    private CanteenService canteenService;
 
     //  GET ACTIVE ORDERS
     @GetMapping
@@ -55,5 +57,11 @@ public class KitchenController {
                         .data(order)
                         .build()
         );
+    }
+
+    @PostMapping("/canteen/kitchen-ready")
+    public ResponseEntity<String> kitchenReady() {
+        canteenService.setKitchenReady();
+        return ResponseEntity.ok("Kitchen is ready");
     }
 }

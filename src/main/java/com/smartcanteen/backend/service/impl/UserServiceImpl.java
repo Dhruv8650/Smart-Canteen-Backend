@@ -3,6 +3,7 @@ package com.smartcanteen.backend.service.impl;
 import com.smartcanteen.backend.dto.request.RegisterRequestDTO;
 import com.smartcanteen.backend.dto.response.AuthResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
+import com.smartcanteen.backend.entity.CanteenStatus;
 import com.smartcanteen.backend.entity.OtpType;
 import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.entity.User;
@@ -100,7 +101,7 @@ public class UserServiceImpl implements UserService {
 
         // CANTEEN CHECK
         if ((user.getRole() == Role.MANAGER || user.getRole() == Role.KITCHEN)
-                && !canteenService.isCanteenOpen()) {
+                && canteenService.getCanteen().getStatus() == CanteenStatus.CLOSED) {
 
             log.warn("Login blocked - canteen closed for {}", email);
             throw new RuntimeException("Canteen is closed. Login not allowed.");
