@@ -108,5 +108,9 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
 """)
     List<Order> findByStatusesWithDetails(List<OrderStatus> statuses);
 
-
+    @Query("""
+    SELECT COUNT(o) FROM Order o
+    WHERE o.status IN ('PENDING', 'PREPARING', 'READY')
+""")
+    long countActiveOrders();
 }

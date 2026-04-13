@@ -465,6 +465,11 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
+    @Override
+    public boolean hasActiveOrders() {
+        return orderRepository.countActiveOrders() > 0;
+    }
+
     private void validateStatusTransition(OrderStatus current,
                                           OrderStatus next) {
 

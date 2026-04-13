@@ -29,4 +29,6 @@ public interface OrderService {
     void cancelOrder(Long orderId);
 
     OrderResponseDTO rejectOrder(Long orderId);
+
+    boolean hasActiveOrders();
 }
