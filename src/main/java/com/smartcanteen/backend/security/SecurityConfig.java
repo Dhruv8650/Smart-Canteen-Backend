@@ -62,7 +62,8 @@ public class SecurityConfig {
                                 "/ws-orders/**",
                                 "/topic/**",
                                 "/ws/**",
-                                "/test/**"
+                                "/test/**",
+                                "/canteen"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
