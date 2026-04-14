@@ -22,4 +22,6 @@ public interface FoodService {
             String search);
 
     public FoodItemResponseDTO toggleAvailability(Long id);
+
+    Double getAverageRating(Long foodItemId);
 }

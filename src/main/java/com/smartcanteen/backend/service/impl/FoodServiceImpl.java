@@ -6,20 +6,24 @@ import com.smartcanteen.backend.entity.FoodCategory;
 import com.smartcanteen.backend.entity.FoodItem;
 import com.smartcanteen.backend.exception.FoodNotFoundException;
 import com.smartcanteen.backend.repository.FoodItemRepository;
+import com.smartcanteen.backend.repository.RatingRepository;
 import com.smartcanteen.backend.service.FoodService;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
+import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
+
 @Slf4j
 @Service
+@AllArgsConstructor
 public class FoodServiceImpl implements FoodService {
 
     private final FoodItemRepository foodItemRepository;
-
-    public FoodServiceImpl(FoodItemRepository repository) {
-        this.foodItemRepository = repository;
-    }
+    private final RatingRepository ratingRepository;
 
     @Override
     public FoodItemResponseDTO createFood(FoodItemRequestDTO request) {
@@ -158,6 +162,12 @@ public class FoodServiceImpl implements FoodService {
         log.info("Food availability toggled. New status: {}", updated.isAvailable());
 
         return mapToDTO(updated);
+    }
+
+    @Override
+    public Double getAverageRating(Long foodItemId) {
+        return Optional.ofNullable(ratingRepository.getAverageRating(foodItemId))
+                .orElse(0.0);
     }
 
     private FoodItemResponseDTO mapToDTO(FoodItem food) {
