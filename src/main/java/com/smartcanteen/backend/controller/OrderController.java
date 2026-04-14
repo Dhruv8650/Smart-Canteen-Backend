@@ -3,8 +3,12 @@ package com.smartcanteen.backend.controller;
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.entity.Order;
+import com.smartcanteen.backend.entity.OrderStatus;
+import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.service.OrderService;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -13,14 +17,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/orders")
 public class OrderController {
 
     private final OrderService orderService;
-
-    public OrderController(OrderService orderService){
-        this.orderService = orderService;
-    }
+    private final OrderRepository orderRepository;
 
     // USER PLACES ORDER
     @PostMapping
@@ -129,5 +131,22 @@ public class OrderController {
                         .message("Order cancelled successfully")
                         .build()
         );
+    }
+
+    @PostMapping("/verify")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<String> verifyOrder(@RequestParam String pickupCode) {
+
+        Order order = orderRepository.findByPickupCode(pickupCode)
+                .orElseThrow(() -> new RuntimeException("Invalid QR"));
+
+        if (order.getStatus() != OrderStatus.READY) {
+            throw new RuntimeException("Order not ready or already collected");
+        }
+
+        order.setStatus(OrderStatus.COMPLETED);
+        orderRepository.save(order);
+
+        return ResponseEntity.ok("Order verified & collected");
     }
 }

@@ -24,7 +24,7 @@ public class OrderMapper {
                 order.getUser().isActive()
         );
 
-        // ORDER ITEMS → FOOD DTOs (UPDATED ✅)
+        // ORDER ITEMS → FOOD DTOs
         List<FoodItemResponseDTO> foodDTOs = order.getOrderItems()
                 .stream()
                 .map(orderItem -> {
@@ -66,6 +66,14 @@ public class OrderMapper {
                 (itemCount == 1 ? " item • ₹" : " items • ₹") +
                 order.getTotalAmount();
 
+        //  QR + INVOICE LOGIC
+
+        boolean showQr = order.getStatus() == OrderStatus.READY;
+
+        String pickupCode = showQr
+                ? order.getPickupCode()   // only expose when READY
+                : null;
+
         return new OrderResponseDTO(
                 order.getId(),
                 userDTO,
@@ -83,9 +91,13 @@ public class OrderMapper {
                 order.getStatus() == OrderStatus.COMPLETED,
                 order.getStatus() == OrderStatus.COMPLETED,
 
-                // NEW FIELDS
+                // TIME FIELDS
                 seconds,
-                statusLabel
+                statusLabel,
+
+                // QR
+                pickupCode,
+                showQr
         );
     }
 

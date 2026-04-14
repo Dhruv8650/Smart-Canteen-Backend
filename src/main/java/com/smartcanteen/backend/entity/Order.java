@@ -40,6 +40,9 @@ public class Order {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(unique = true)
+    private String pickupCode; // QR content
+
     public Order() {}
 
     @PrePersist
@@ -75,6 +78,7 @@ public class Order {
     public PaymentMethod getPaymentMethod() {
         return paymentMethod;
     }
+    public String getPickupCode() { return pickupCode;}
 
     public void setUser(User user) {
         this.user = user;
@@ -94,5 +98,9 @@ public class Order {
 
     public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public void setPickupCode(String pickupCode) {
+        this.pickupCode = pickupCode;
     }
 }

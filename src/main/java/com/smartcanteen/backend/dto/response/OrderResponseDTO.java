@@ -25,6 +25,7 @@ public class OrderResponseDTO {
     private LocalDateTime createdAt;
 
 
+
     private String orderNumber;
     private String statusLabel; // business status
     private String formattedDate;
@@ -34,4 +35,6 @@ public class OrderResponseDTO {
     private boolean canDownloadInvoice;
     private long elapsedSeconds;
     private String timeStatus; // WARNING / DELAYED / ON_TIME
+    private String pickupCode;
+    private boolean showQr;
 }

@@ -27,6 +27,7 @@ import java.util.Map;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -177,6 +178,7 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(total);
 
+        order.setPickupCode(generatePickupCode(order.getId()));
         //  SAVE ORDER
         Order saved = orderRepository.save(order);
 
@@ -468,6 +470,11 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public boolean hasActiveOrders() {
         return orderRepository.countActiveOrders() > 0;
+    }
+
+    private String generatePickupCode(Long orderId) {
+        String random = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        return "ORDER_" + orderId + "_" + random;
     }
 
     private void validateStatusTransition(OrderStatus current,
