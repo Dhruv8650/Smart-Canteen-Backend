@@ -6,12 +6,17 @@ import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.repository.OrderRepository;
+import com.smartcanteen.backend.service.InvoiceService;
 import com.smartcanteen.backend.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +28,7 @@ public class OrderController {
 
     private final OrderService orderService;
     private final OrderRepository orderRepository;
+    private final InvoiceService invoiceService;
 
     // USER PLACES ORDER
     @PostMapping
@@ -93,15 +99,18 @@ public class OrderController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{orderId}/invoice")
+    @GetMapping(value = "/{orderId}/invoice", produces = MediaType.APPLICATION_PDF_VALUE)
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
-    public ResponseEntity<byte[]> downloadInvoice(@PathVariable Long orderId) {
+    public ResponseEntity<byte[]> downloadInvoice(
+            @PathVariable Long orderId
+    ) {
 
-        byte[] pdf = orderService.generateInvoice(orderId);
+        byte[] pdf = invoiceService.generateInvoice(orderId);
 
         return ResponseEntity.ok()
-                .header("Content-Type", "application/pdf")
-                .header("Content-Disposition", "attachment; filename=invoice_" + orderId + ".pdf")
+                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_PDF_VALUE)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=invoice_" + orderId + ".pdf")
                 .body(pdf);
     }
 

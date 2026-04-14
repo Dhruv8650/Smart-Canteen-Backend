@@ -18,8 +18,6 @@ public interface OrderService {
 
     OrderResponseDTO updateOrderStatus(Long orderId, OrderStatus newStatus);
 
-    byte[] generateInvoice(Long orderId);
-
     void reorder(Long orderId);
 
     List<OrderResponseDTO> getOrdersByStatuses(List<OrderStatus> statuses);

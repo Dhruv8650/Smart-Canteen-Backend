@@ -352,45 +352,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public byte[] generateInvoice(Long orderId) {
-
-        log.info("Generating invoice for order ID: {}", orderId);
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
-
-        String currentUserEmail = SecurityUtils.getCurrentUserEmail();
-        boolean isAdmin = SecurityUtils.isAdmin();
-
-        //  CHECK
-        if (currentUserEmail == null && !isAdmin) {
-            throw new RuntimeException("User not authenticated");
-        }
-
-        //  ROLE + OWNERSHIP CHECK
-        if (!isAdmin && !order.getUser().getEmail().equals(currentUserEmail)) {
-            throw new RuntimeException("Access denied");
-        }
-
-        //  INVOICE GENERATION LOGIC (SIMULATED)4
-        String invoiceContent = "Invoice for Order ID: " + order.getId() + "\n" +
-                "Customer: " + order.getUser().getName() + "\n" +
-                "Total Amount: $" + order.getTotalAmount() + "\n" +
-                "Status: " + order.getStatus() + "\n" +
-                "Items:\n";
-
-        for (OrderItem item : order.getOrderItems()) {
-            invoiceContent += "- " + item.getFoodItem().getName() +
-                    " x" + item.getQuantity() +
-                    " @ $" + item.getFoodItem().getPrice() + "\n";
-        }
-
-        log.info("Invoice content generated for order ID {}: \n{}", orderId, invoiceContent);
-
-        return invoiceContent.getBytes();
-    }
-
-    @Override
     @Transactional
     public void reorder(Long orderId) {
 
