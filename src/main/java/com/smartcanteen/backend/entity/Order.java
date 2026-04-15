@@ -1,12 +1,16 @@
 package com.smartcanteen.backend.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
 @Entity
+@Getter
 @Table(name = "orders") // lowercase is best practice
 public class Order {
 
@@ -43,6 +47,10 @@ public class Order {
     @Column(unique = true)
     private String pickupCode; // QR content
 
+    private LocalDateTime readyAt;
+
+    private LocalDateTime pickupExpiry;
+
     public Order() {}
 
     @PrePersist
@@ -50,35 +58,7 @@ public class Order {
         this.createdAt = LocalDateTime.now();
     }
 
-    // Getters & Setters
-
-    public Long getId() {
-        return id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
-    }
-
-    public OrderStatus getStatus() {
-        return status;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public List<OrderItem> getOrderItems() {
-        return orderItems;
-    }
-    public PaymentMethod getPaymentMethod() {
-        return paymentMethod;
-    }
-    public String getPickupCode() { return pickupCode;}
+    // Setters
 
     public void setUser(User user) {
         this.user = user;
@@ -102,5 +82,13 @@ public class Order {
 
     public void setPickupCode(String pickupCode) {
         this.pickupCode = pickupCode;
+    }
+
+    public void setReadyAt(LocalDateTime readyAt) {
+        this.readyAt = readyAt;
+    }
+
+    public void setPickupExpiry(LocalDateTime pickupExpiry) {
+        this.pickupExpiry = pickupExpiry;
     }
 }

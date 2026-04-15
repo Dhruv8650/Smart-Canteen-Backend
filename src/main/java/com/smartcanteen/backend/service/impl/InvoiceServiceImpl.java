@@ -94,9 +94,13 @@ public class InvoiceServiceImpl implements InvoiceService {
             document.add(new Paragraph("\n"));
 
             // ===== QR CODE =====
-            String qrUrl = "https://smart-canteen-backend-k235.onrender.com/orders/verify?code=" + order.getPickupCode();
 
-            BarcodeQRCode qrCode = new BarcodeQRCode(qrUrl);
+            String baseUrl = "https://smart-canteen-backend-k235.onrender.com";
+
+            // FULL QR DATA (URL FORMAT)
+            String qrData = baseUrl + "/orders/verify?code=" + order.getPickupCode();
+
+            BarcodeQRCode qrCode = new BarcodeQRCode(qrData);
             Image qrImage = new Image(qrCode.createFormXObject(pdf));
 
             qrImage.setWidth(120);
@@ -104,6 +108,11 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             document.add(new Paragraph("Scan for Pickup"));
             document.add(qrImage);
+
+            // UX MESSAGE
+            document.add(new Paragraph(
+                    "Scan using manager app or any QR scanner for verification")
+                    .setFontSize(10));
 
             document.add(new Paragraph("\n"));
 

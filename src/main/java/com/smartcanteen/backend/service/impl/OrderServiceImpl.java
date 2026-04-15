@@ -14,14 +14,18 @@ import com.smartcanteen.backend.repository.CartRepository;
 import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.repository.UserRepository;
+import com.smartcanteen.backend.security.QrSecurityUtil;
 import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.CanteenService;
 import com.smartcanteen.backend.service.OrderService;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,6 +35,7 @@ import java.util.UUID;
 
 @Slf4j
 @Service
+@AllArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
@@ -39,18 +44,8 @@ public class OrderServiceImpl implements OrderService {
     private final CartRepository cartRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final CanteenService canteenService;
+    private final QrSecurityUtil qrSecurityUtil;
 
-    public OrderServiceImpl(OrderRepository orderRepository,
-                            UserRepository userRepository,
-                            FoodItemRepository foodItemRepository,CartRepository cartRepository,CanteenService canteenService,
-                            ApplicationEventPublisher eventPublisher) {
-        this.orderRepository = orderRepository;
-        this.userRepository = userRepository;
-        this.foodItemRepository = foodItemRepository;
-        this.cartRepository=cartRepository;
-        this.canteenService=canteenService;
-        this.eventPublisher = eventPublisher;
-    }
 
     @Override
     @Transactional
@@ -182,7 +177,17 @@ public class OrderServiceImpl implements OrderService {
         //  SAVE ORDER
         Order saved = orderRepository.save(order);
 
-        order.setPickupCode(generatePickupCode(order.getId()));
+        String baseCode = generatePickupCode(saved.getId());
+
+        String payload = baseCode + "|" + saved.getId();
+
+        String signature = qrSecurityUtil.generateSignature(payload);
+
+        String finalCode = payload + "|" + signature;
+
+        saved.setPickupCode(finalCode);
+
+        saved = orderRepository.save(saved);
 
         saved = orderRepository.save(saved);
 
@@ -303,6 +308,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponseDTO updateOrderStatus(Long orderId,
                                               OrderStatus newStatus) {
 
+
         log.info("Updating order {} to status {}", orderId, newStatus);
 
         Order order = orderRepository.findById(orderId)
@@ -310,6 +316,11 @@ public class OrderServiceImpl implements OrderService {
                     log.error("Order not found: {}", orderId);
                     return new OrderNotFoundException("Order not found with id: " + orderId);
                 });
+
+        if (newStatus == OrderStatus.READY) {
+            order.setReadyAt(LocalDateTime.now());
+            order.setPickupExpiry(LocalDateTime.now().plusMinutes(20));
+        }
 
         //  AUTH CHECK
         if (SecurityUtils.getCurrentUserRole() == null) {
@@ -443,9 +454,26 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Order verifyAndReturn(String pickupCode) {
+    public Order verifyAndReturn(String code) {
 
-        Order order = orderRepository.findByPickupCode(pickupCode)
+        String[] parts = code.split("\\|");
+
+        if (parts.length != 3) {
+            throw new RuntimeException("Invalid QR format");
+        }
+
+        String baseCode = parts[0];
+        String orderId = parts[1];
+        String signature = parts[2];
+
+        String payload = baseCode + "|" + orderId;
+
+        //  VERIFY SIGNATURE
+        if (!qrSecurityUtil.verify(payload, signature)) {
+            throw new RuntimeException("Invalid QR (tampered)");
+        }
+
+        Order order = orderRepository.findByPickupCode(code)
                 .orElseThrow(() -> new RuntimeException("Invalid QR code"));
 
         if (order.getStatus() == OrderStatus.COMPLETED) {
@@ -456,16 +484,29 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("Order not ready yet");
         }
 
+        boolean isLate = false;
+
+        if (order.getPickupExpiry() != null &&
+                LocalDateTime.now().isAfter(order.getPickupExpiry())) {
+
+            isLate = true;
+        }
+
+        //  COMPLETE ORDER
         order.setStatus(OrderStatus.COMPLETED);
 
         Order saved = orderRepository.save(order);
 
-        // SEND REAL-TIME UPDATE
+        // WEBSOCKET EVENT
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
         eventPublisher.publishEvent(
                 new OrderStatusUpdatedEvent(response)
         );
+
+        if (isLate) {
+            log.warn("Late pickup for order {}", order.getId());
+        }
 
         return saved;
     }
