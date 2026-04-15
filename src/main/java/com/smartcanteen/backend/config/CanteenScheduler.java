@@ -17,7 +17,7 @@ public class CanteenScheduler {
     private final CanteenService canteenService;
     private final OrderService orderService;
 
-    @Scheduled(fixedRate = 60000) // every 1 min
+    @Scheduled(fixedRate = 10000) // every 1 min
     public void handleCanteenFlow() {
 
         Canteen c = canteenService.getCanteen();

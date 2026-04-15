@@ -21,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @AllArgsConstructor
@@ -160,20 +161,50 @@ public class OrderController {
         );
     }
 
+    @GetMapping("/verify")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<String> verifyOrder(@RequestParam("code") String pickupCode) {
+
+        Order order = orderService.verifyAndReturn(pickupCode);
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/html")
+                .body("""
+            <html>
+                <body style="text-align:center;
+                             font-family:sans-serif;
+                             margin-top:50px;">
+                    <h1 style="color:green;">✅ Order Verified</h1>
+                    <h2>Order #""" + order.getId() + """
+                    </h2>
+                    <p style="font-size:18px;">Successfully collected</p>
+                </body>
+            </html>
+        """);
+    }
+
     @PostMapping("/verify")
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<String> verifyOrder(@RequestParam String pickupCode) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyOrderPost(
+            @RequestBody Map<String, String> body
+    ) {
 
-        Order order = orderRepository.findByPickupCode(pickupCode)
-                .orElseThrow(() -> new RuntimeException("Invalid QR"));
+        String pickupCode = body.get("code");
 
-        if (order.getStatus() != OrderStatus.READY) {
-            throw new RuntimeException("Order not ready or already collected");
-        }
+        Order order = orderService.verifyAndReturn(pickupCode);
 
-        order.setStatus(OrderStatus.COMPLETED);
-        orderRepository.save(order);
+        Map<String, Object> data = Map.of(
+                "orderId", order.getId(),
+                "message", "Order verified successfully",
+                "status", "COMPLETED"
+        );
 
-        return ResponseEntity.ok("Order verified & collected");
+        return ResponseEntity.ok(
+                ApiResponse.<Map<String, Object>>builder()
+                        .success(true)
+                        .message("Order #" + order.getId() + " verified and completed")
+                        .data(data)
+                        .build()
+        );
     }
 }

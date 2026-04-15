@@ -178,9 +178,13 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(total);
 
-        order.setPickupCode(generatePickupCode(order.getId()));
+
         //  SAVE ORDER
         Order saved = orderRepository.save(order);
+
+        order.setPickupCode(generatePickupCode(order.getId()));
+
+        saved = orderRepository.save(saved);
 
         log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
 
@@ -436,6 +440,34 @@ public class OrderServiceImpl implements OrderService {
     private String generatePickupCode(Long orderId) {
         String random = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         return "ORDER_" + orderId + "_" + random;
+    }
+
+    @Override
+    public Order verifyAndReturn(String pickupCode) {
+
+        Order order = orderRepository.findByPickupCode(pickupCode)
+                .orElseThrow(() -> new RuntimeException("Invalid QR code"));
+
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            throw new RuntimeException("Order already collected");
+        }
+
+        if (order.getStatus() != OrderStatus.READY) {
+            throw new RuntimeException("Order not ready yet");
+        }
+
+        order.setStatus(OrderStatus.COMPLETED);
+
+        Order saved = orderRepository.save(order);
+
+        // SEND REAL-TIME UPDATE
+        OrderResponseDTO response = OrderMapper.toDTO(saved);
+
+        eventPublisher.publishEvent(
+                new OrderStatusUpdatedEvent(response)
+        );
+
+        return saved;
     }
 
     private void validateStatusTransition(OrderStatus current,

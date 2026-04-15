@@ -1,21 +1,26 @@
 package com.smartcanteen.backend.service.impl;
 
+import com.itextpdf.barcodes.BarcodeQRCode;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Table;
+
 import com.smartcanteen.backend.dto.response.InvoiceResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderItemDTO;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderItem;
-import com.smartcanteen.backend.exception.OrderNotFoundException;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.InvoiceService;
+
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
-import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
 import java.io.ByteArrayOutputStream;
 import java.util.List;
 
@@ -26,59 +31,96 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     private final OrderRepository orderRepository;
 
-    @Override
     @Transactional
+    @Override
     public byte[] generateInvoice(Long orderId) {
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        String currentUserEmail = SecurityUtils.getCurrentUserEmail();
-        boolean isAdmin = SecurityUtils.isAdmin();
-
-        if (currentUserEmail == null) {
-            throw new RuntimeException("User not authenticated");
-        }
-
-        if (!isAdmin && !order.getUser().getEmail().equals(currentUserEmail)) {
-            throw new RuntimeException("Access denied");
-        }
-
-        if (order.getUser() == null) {
-            throw new RuntimeException("Order user not found");
-        }
-
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             PdfWriter writer = new PdfWriter(out);
             PdfDocument pdf = new PdfDocument(writer);
             Document document = new Document(pdf);
 
-            document.add(new Paragraph("Smart Canteen Invoice").setBold().setFontSize(18));
+            // ===== HEADER =====
+            document.add(new Paragraph("Smart Canteen")
+                    .setBold()
+                    .setFontSize(20));
 
+            document.add(new Paragraph("Invoice")
+                    .setFontSize(14));
+
+            document.add(new Paragraph("\n"));
+
+            // ===== ORDER INFO =====
             document.add(new Paragraph("Order ID: " + order.getId()));
+            document.add(new Paragraph("Date: " + order.getCreatedAt()));
+            document.add(new Paragraph("\n"));
+
+            // ===== CUSTOMER =====
             document.add(new Paragraph("Customer: " + order.getUser().getName()));
             document.add(new Paragraph("Email: " + order.getUser().getEmail()));
+            document.add(new Paragraph("\n"));
+
+            // ===== TABLE =====
+            float[] columnWidths = {200F, 100F, 100F};
+            Table table = new Table(columnWidths);
+
+            table.addCell("Item");
+            table.addCell("Qty");
+            table.addCell("Price");
 
             for (OrderItem item : order.getOrderItems()) {
-                document.add(new Paragraph(
-                        item.getFoodItem().getName() +
-                                " x" + item.getQuantity() +
-                                " - ₹" + item.getFoodItem().getPrice()
-                ));
+                table.addCell(item.getFoodItem().getName());
+                table.addCell(String.valueOf(item.getQuantity()));
+                table.addCell("₹" + item.getFoodItem().getPrice());
             }
+
+            document.add(table);
+
+            document.add(new Paragraph("\n"));
+
+            // ===== TOTAL =====
+            document.add(new Paragraph("Total (Incl. Taxes): ₹" + order.getTotalAmount())
+                    .setBold());
+
+            document.add(new Paragraph("\n"));
+
+            // ===== PICKUP CODE =====
+            document.add(new Paragraph("Pickup Code: " + order.getPickupCode()));
+
+            document.add(new Paragraph("\n"));
+
+            // ===== QR CODE =====
+            String qrUrl = "https://smart-canteen-backend-k235.onrender.com/orders/verify?code=" + order.getPickupCode();
+
+            BarcodeQRCode qrCode = new BarcodeQRCode(qrUrl);
+            Image qrImage = new Image(qrCode.createFormXObject(pdf));
+
+            qrImage.setWidth(120);
+            qrImage.setHeight(120);
+
+            document.add(new Paragraph("Scan for Pickup"));
+            document.add(qrImage);
+
+            document.add(new Paragraph("\n"));
+
+            // ===== FOOTER =====
+            document.add(new Paragraph("Thank you for ordering with Smart Canteen!")
+                    .setFontSize(10));
 
             document.close();
 
             return out.toByteArray();
 
         } catch (Exception e) {
-            log.error("Error generating invoice", e);
-            throw new RuntimeException("Error generating invoice: " + e.getMessage(), e);
+            throw new RuntimeException("Error generating invoice");
         }
     }
 
+    // OPTIONAL: API data for frontend
     public InvoiceResponseDTO getInvoiceData(Long orderId) {
 
         Order order = orderRepository.findById(orderId)

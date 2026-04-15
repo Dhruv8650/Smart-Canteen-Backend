@@ -31,6 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
+        System.out.println("REQUEST PATH: " + request.getServletPath());
 
         //  Skip public/auth endpoints
         if (
