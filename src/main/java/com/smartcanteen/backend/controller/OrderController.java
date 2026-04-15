@@ -2,6 +2,7 @@ package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
+import com.smartcanteen.backend.dto.response.InvoiceResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderStatus;
@@ -112,6 +113,23 @@ public class OrderController {
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=invoice_" + orderId + ".pdf")
                 .body(pdf);
+    }
+
+    @GetMapping("/{orderId}/invoice-preview")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<InvoiceResponseDTO>> getInvoicePreview(
+            @PathVariable Long orderId
+    ) {
+
+        InvoiceResponseDTO invoice = invoiceService.getInvoiceData(orderId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<InvoiceResponseDTO>builder()
+                        .success(true)
+                        .message("Invoice fetched successfully")
+                        .data(invoice)
+                        .build()
+        );
     }
 
     @PostMapping("/{orderId}/reorder")

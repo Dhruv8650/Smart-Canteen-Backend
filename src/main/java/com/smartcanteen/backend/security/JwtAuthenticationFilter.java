@@ -1,6 +1,5 @@
 package com.smartcanteen.backend.security;
 
-import com.smartcanteen.backend.security.CustomUserDetailsService;
 import com.smartcanteen.backend.service.JwtService;
 import com.smartcanteen.backend.service.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
@@ -31,8 +30,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getServletPath();
+        String path = request.getRequestURI();
 
+        //  Skip public/auth endpoints
         if (
                 path.startsWith("/users/register") ||
                         path.startsWith("/users/login") ||
@@ -41,45 +41,45 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         path.startsWith("/users/resend-otp") ||
                         path.startsWith("/users/forgot-password") ||
                         path.startsWith("/users/reset-password") ||
-                        path.startsWith("/users/refresh")
+                        path.startsWith("/users/refresh") ||
+                        path.startsWith("/ws-orders")
         ) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        if (path.startsWith("/ws-orders")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         final String authHeader = request.getHeader("Authorization");
 
+        //  If no token → continue (Spring will handle if endpoint is protected)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = authHeader.substring(7);
-        System.out.println("TOKEN: " + token);
 
         try {
-            // Service-based blacklist check
+
+            //  Check blacklist
             if (tokenBlacklistService.isBlacklisted(token)) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("Token is blacklisted (logged out)");
                 return;
             }
 
+            //  Extract email
             String email = jwtService.extractEmail(token);
-            System.out.println("EMAIL FROM TOKEN: " + email);
 
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (email != null) {
 
+                //  Load user
                 UserDetails userDetails =
                         userDetailsService.loadUserByUsername(email);
 
+                //  Validate token
                 if (jwtService.isTokenValid(token, userDetails)) {
 
+                    //  Create authentication
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,
@@ -91,13 +91,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             new WebAuthenticationDetailsSource().buildDetails(request)
                     );
 
+                    //  ALWAYS SET AUTH (MAIN FIX)
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
 
         } catch (Exception e) {
-            System.out.println("JWT ERROR: " + e.getMessage());
-            e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid or expired token");
             return;
