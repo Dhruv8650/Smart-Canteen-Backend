@@ -19,7 +19,7 @@ import java.util.List;
 public class ManagerController {
 
     private final OrderService orderService;
-    private CanteenService canteenService;
+    private final CanteenService canteenService;
 
     // ONLY COMPLETE ORDER
     @PatchMapping("/{orderId}/complete")

@@ -14,16 +14,15 @@ import java.util.List;
 
 @PreAuthorize("hasRole('KITCHEN')")
 @RestController
-@RequestMapping("/kitchen/orders")
+@RequestMapping("/kitchen")
 @RequiredArgsConstructor
 public class KitchenController {
 
     private final OrderService orderService;
-    private CanteenService canteenService;
+    private final CanteenService canteenService;
 
     //  GET ACTIVE ORDERS
-    @GetMapping
-
+    @GetMapping("/orders")
     public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getKitchenOrders() {
 
         List<OrderResponseDTO> orders =
@@ -42,7 +41,7 @@ public class KitchenController {
     }
 
     //  UPDATE STATUS (BUTTON ACTION)
-    @PatchMapping("/{orderId}/status")
+    @PatchMapping("orders/{orderId}/status")
     public ResponseEntity<ApiResponse<OrderResponseDTO>> updateStatus(
             @PathVariable Long orderId,
             @RequestParam OrderStatus status) {
