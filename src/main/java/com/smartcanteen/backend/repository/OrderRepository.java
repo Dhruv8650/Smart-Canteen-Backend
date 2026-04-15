@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -127,4 +128,11 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     boolean hasUserOrderedItem(User user, Long foodItemId);
 
     Optional<Order> findByPickupCode(String pickupCode);
+
+    @Query("""
+    SELECT COUNT(o) FROM Order o
+    WHERE o.status IN ('PENDING', 'PREPARING')
+    OR (o.status = 'READY' AND o.pickupExpiry > :now)
+""")
+    long countActiveOrdersSmart(LocalDateTime now);
 }

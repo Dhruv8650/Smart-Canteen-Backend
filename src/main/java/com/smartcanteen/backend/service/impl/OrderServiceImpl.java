@@ -445,7 +445,8 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public boolean hasActiveOrders() {
-        return orderRepository.countActiveOrders() > 0;
+
+        return orderRepository.countActiveOrdersSmart(LocalDateTime.now()) > 0;
     }
 
     private String generatePickupCode(Long orderId) {
