@@ -174,7 +174,7 @@ public class OrderController {
                 <body style="text-align:center;
                              font-family:sans-serif;
                              margin-top:50px;">
-                    <h1 style="color:green;">✅ Order Verified</h1>
+                    <h1 style="color:green;"> Order Verified</h1>
                     <h2>Order #""" + order.getId() + """
                     </h2>
                     <p style="font-size:18px;">Successfully collected</p>

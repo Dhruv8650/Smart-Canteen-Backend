@@ -135,4 +135,12 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     OR (o.status = 'READY' AND o.pickupExpiry > :now)
 """)
     long countActiveOrdersSmart(LocalDateTime now);
+
+    @Query("""
+    SELECT o FROM Order o
+    LEFT JOIN FETCH o.orderItems oi
+    LEFT JOIN FETCH oi.foodItem
+    WHERE o.id = :id
+""")
+    Optional<Order> findByIdWithItems(@Param("id") Long id);
 }

@@ -177,6 +177,14 @@ public class OrderServiceImpl implements OrderService {
         //  SAVE ORDER
         Order saved = orderRepository.save(order);
 
+        try {
+            saved = orderRepository.findByIdWithItems(saved.getId())
+                    .orElseThrow(() -> new RuntimeException("Order not found after save"));
+        } catch (Exception e) {
+            e.printStackTrace(); // 🔥 will reveal exact error
+            throw e;
+        }
+
         String baseCode = generatePickupCode(saved.getId());
 
         String payload = baseCode + "|" + saved.getId();
@@ -186,10 +194,6 @@ public class OrderServiceImpl implements OrderService {
         String finalCode = payload + "|" + signature;
 
         saved.setPickupCode(finalCode);
-
-        saved = orderRepository.save(saved);
-
-        saved = orderRepository.save(saved);
 
         log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
 

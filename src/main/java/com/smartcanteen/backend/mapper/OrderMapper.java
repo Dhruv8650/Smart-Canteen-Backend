@@ -8,6 +8,7 @@ import com.smartcanteen.backend.entity.OrderStatus;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -44,7 +45,7 @@ public class OrderMapper {
                 .toList();
 
         // TIME CALCULATION
-        Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now());
+        Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now(ZoneOffset.UTC));
 
         long minutes = duration.toMinutes();
         long seconds = duration.minusMinutes(minutes).getSeconds();
