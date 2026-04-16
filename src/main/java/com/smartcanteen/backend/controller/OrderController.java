@@ -165,7 +165,7 @@ public class OrderController {
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<String> verifyOrder(@RequestParam("code") String pickupCode) {
 
-        Order order = orderService.verifyAndReturn(pickupCode);
+        OrderResponseDTO order = orderService.verifyAndReturn(pickupCode);
 
         return ResponseEntity.ok()
                 .header("Content-Type", "text/html")
@@ -191,7 +191,7 @@ public class OrderController {
 
         String pickupCode = body.get("code");
 
-        Order order = orderService.verifyAndReturn(pickupCode);
+        OrderResponseDTO order = orderService.verifyAndReturn(pickupCode);
 
         Map<String, Object> data = Map.of(
                 "orderId", order.getId(),

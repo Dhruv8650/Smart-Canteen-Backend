@@ -143,4 +143,13 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     WHERE o.id = :id
 """)
     Optional<Order> findByIdWithItems(@Param("id") Long id);
+
+    @Query("""
+    SELECT o FROM Order o
+    JOIN FETCH o.user
+    LEFT JOIN FETCH o.orderItems oi
+    LEFT JOIN FETCH oi.foodItem
+    WHERE o.pickupCode = :code
+""")
+    Optional<Order> findByPickupCodeWithDetails(@Param("code") String code);
 }

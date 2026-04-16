@@ -459,7 +459,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Order verifyAndReturn(String code) {
+    @Transactional
+    public OrderResponseDTO verifyAndReturn(String code) {
 
         String[] parts = code.split("\\|");
 
@@ -478,7 +479,7 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("Invalid QR (tampered)");
         }
 
-        Order order = orderRepository.findByPickupCode(code)
+        Order order = orderRepository.findByPickupCodeWithDetails(code)
                 .orElseThrow(() -> new RuntimeException("Invalid QR code"));
 
         if (order.getStatus() == OrderStatus.COMPLETED) {
@@ -513,7 +514,7 @@ public class OrderServiceImpl implements OrderService {
             log.warn("Late pickup for order {}", order.getId());
         }
 
-        return saved;
+        return response;
     }
 
     private void validateStatusTransition(OrderStatus current,

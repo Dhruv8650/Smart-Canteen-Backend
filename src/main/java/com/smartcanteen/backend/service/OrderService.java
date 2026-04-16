@@ -31,5 +31,5 @@ public interface OrderService {
 
     boolean hasActiveOrders();
 
-    Order verifyAndReturn(String pickupCode);
+    OrderResponseDTO verifyAndReturn(String pickupCode);
 }
