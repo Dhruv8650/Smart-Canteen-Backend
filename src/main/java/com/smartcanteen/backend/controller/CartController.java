@@ -114,25 +114,4 @@ public class CartController {
         return ResponseEntity.ok(response);
     }
 
-    //  CHECKOUT
-    @PostMapping("/checkout")
-    @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<ApiResponse<OrderResponseDTO>> checkout(
-            @RequestBody OrderRequestDTO request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-
-        User user = getUser(userDetails);
-
-        // 🔥 only paymentMethod is used
-        OrderResponseDTO order =
-                cartService.checkout(user, request.getPaymentMethod());
-
-        return ResponseEntity.ok(
-                ApiResponse.<OrderResponseDTO>builder()
-                        .success(true)
-                        .message("Order placed successfully")
-                        .data(order)
-                        .build()
-        );
-    }
 }

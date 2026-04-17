@@ -15,5 +15,5 @@ public interface CartService {
 
     void updateQuantity(Long cartItemId,Integer quantity,User user);
 
-     OrderResponseDTO checkout(User user, PaymentMethod paymentMethod);
+    void clearCart(User user);
 }

@@ -44,10 +44,15 @@ public class Order {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    private LocalDateTime readyAt;
+
     @Column(unique = true)
     private String pickupCode; // QR content
 
-    private LocalDateTime readyAt;
+    @Column(nullable = false)
+    private Boolean qrUsed = false;
+
+    private LocalDateTime qrUsedAt;
 
     private LocalDateTime pickupExpiry;
 
@@ -90,5 +95,14 @@ public class Order {
 
     public void setPickupExpiry(LocalDateTime pickupExpiry) {
         this.pickupExpiry = pickupExpiry;
+
+    }
+
+    public void setQrUsed(Boolean qrUsed) {
+        this.qrUsed = qrUsed;
+    }
+
+    public void setQrUsedAt(LocalDateTime qrUsedAt) {
+        this.qrUsedAt = qrUsedAt;
     }
 }

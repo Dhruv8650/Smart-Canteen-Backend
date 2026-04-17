@@ -18,4 +18,5 @@ public interface CartRepository extends JpaRepository<Cart,Long> {
         WHERE c.user = :user
     """)
     Optional<Cart> findByUserWithItems(User user);
+
 }

@@ -162,7 +162,6 @@ public class OrderController {
     }
 
     @GetMapping("/verify")
-    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<String> verifyOrder(@RequestParam("code") String pickupCode) {
 
         OrderResponseDTO order = orderService.verifyAndReturn(pickupCode);

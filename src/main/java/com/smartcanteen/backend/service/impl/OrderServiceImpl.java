@@ -17,13 +17,16 @@ import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.security.QrSecurityUtil;
 import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.CanteenService;
+import com.smartcanteen.backend.service.CartService;
 import com.smartcanteen.backend.service.OrderService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -45,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final ApplicationEventPublisher eventPublisher;
     private final CanteenService canteenService;
     private final QrSecurityUtil qrSecurityUtil;
+    private final CartService cartService;
 
 
     @Override
@@ -91,7 +95,7 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Placing order for user: {}", userEmail);
 
-        // 🔹 Fetch user
+        //  Fetch user
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
@@ -129,7 +133,7 @@ public class OrderServiceImpl implements OrderService {
             );
         }
 
-        // 🔹 STEP 2: CREATE ORDER ITEMS
+        //  STEP 2: CREATE ORDER ITEMS
         List<OrderItem> orderItems = mergedItems.entrySet()
                 .stream()
                 .map(entry -> {
@@ -181,7 +185,7 @@ public class OrderServiceImpl implements OrderService {
             saved = orderRepository.findByIdWithItems(saved.getId())
                     .orElseThrow(() -> new RuntimeException("Order not found after save"));
         } catch (Exception e) {
-            e.printStackTrace(); // 🔥 will reveal exact error
+            e.printStackTrace();
             throw e;
         }
 
@@ -194,6 +198,10 @@ public class OrderServiceImpl implements OrderService {
         String finalCode = payload + "|" + signature;
 
         saved.setPickupCode(finalCode);
+
+        cartService.clearCart(user);
+
+        log.info("Cart cleared for user: {}", user.getEmail());
 
         log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
 
@@ -462,10 +470,15 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponseDTO verifyAndReturn(String code) {
 
+        log.info("QR verify request received: {}", code);
+
         String[] parts = code.split("\\|");
 
         if (parts.length != 3) {
-            throw new RuntimeException("Invalid QR format");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid QR format"
+            );
         }
 
         String baseCode = parts[0];
@@ -474,32 +487,57 @@ public class OrderServiceImpl implements OrderService {
 
         String payload = baseCode + "|" + orderId;
 
+
+
         //  VERIFY SIGNATURE
         if (!qrSecurityUtil.verify(payload, signature)) {
-            throw new RuntimeException("Invalid QR (tampered)");
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid QR (tampered)"
+            );
         }
 
         Order order = orderRepository.findByPickupCodeWithDetails(code)
-                .orElseThrow(() -> new RuntimeException("Invalid QR code"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Invalid QR code"
+                ));
 
-        if (order.getStatus() == OrderStatus.COMPLETED) {
-            throw new RuntimeException("Order already collected");
+        if (!order.getId().toString().equals(orderId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "QR mismatch"
+            );
         }
 
-        if (order.getStatus() != OrderStatus.READY) {
-            throw new RuntimeException("Order not ready yet");
+        if (order.getQrUsed()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "QR already used");
         }
-
-        boolean isLate = false;
 
         if (order.getPickupExpiry() != null &&
                 LocalDateTime.now().isAfter(order.getPickupExpiry())) {
 
+            throw new ResponseStatusException(
+                    HttpStatus.GONE,
+                    "QR expired"
+            );
+        }
+
+        boolean isLate = false;
+
+        if (order.getStatus() != OrderStatus.READY) {
             isLate = true;
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Order not ready yet"
+            );
         }
 
         //  COMPLETE ORDER
         order.setStatus(OrderStatus.COMPLETED);
+
+        order.setQrUsed(true);
+        order.setQrUsedAt(LocalDateTime.now());
 
         Order saved = orderRepository.save(order);
 

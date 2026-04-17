@@ -23,7 +23,6 @@ public class CartServiceImpl implements CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final FoodItemRepository foodItemRepository;
-    private final OrderService orderService;
 
     // ADD TO CART
     @Transactional
@@ -179,40 +178,21 @@ public class CartServiceImpl implements CartService {
         cartItem.setQuantity(quantity);
     }
 
-    //  CHECKOUT
-    @Override
+
     @Transactional
-    public OrderResponseDTO checkout(User user, PaymentMethod paymentMethod) {
+    @Override
+    public void clearCart(User user) {
 
         Cart cart = cartRepository.findByUserWithItems(user)
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
 
-        if (cart.getCartItems() == null ||cart.getCartItems().isEmpty()) {
-            throw new IllegalStateException("Cart is empty");
+        if (cart.getCartItems() != null) {
+            cart.getCartItems().clear();
         }
 
-        List<OrderItemRequestDTO> items = cart.getCartItems()
-                .stream()
-                .map(ci -> {
-                    OrderItemRequestDTO dto = new OrderItemRequestDTO();
-                    dto.setFoodItemId(ci.getFoodItem().getId());
-                    dto.setQuantity(ci.getQuantity());
-                    return dto;
-                })
-                .toList();
-
-        OrderRequestDTO request = new OrderRequestDTO();
-        request.setItems(items);
-        request.setPaymentMethod(paymentMethod);
-
-        OrderResponseDTO response =
-                orderService.placeOrder(request, user.getEmail());
-
-        // Clear cart
-        cart.getCartItems().clear();
         cartRepository.save(cart);
 
-        return response;
+        log.info("🧹 Cart cleared for user: {}", user.getEmail());
     }
 
     //  HELPER
