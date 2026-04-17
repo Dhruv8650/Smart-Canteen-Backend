@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 @Slf4j
@@ -148,7 +149,11 @@ public class InvoiceServiceImpl implements InvoiceService {
         }
 
         if (!isAdmin && !order.getUser().getEmail().equals(currentUserEmail)) {
-            throw new RuntimeException("Access denied");
+            try {
+                throw new AccessDeniedException("Access denied");
+            } catch (AccessDeniedException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         List<OrderItemDTO> items = order.getOrderItems().stream()

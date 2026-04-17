@@ -122,7 +122,7 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalStateException("Unsupported payment method");
         }
 
-        //  STEP 1: MERGE DUPLICATE ITEMS
+        //   MERGE DUPLICATE ITEMS
         Map<Long, Integer> mergedItems = new HashMap<>();
 
         for (OrderItemRequestDTO item : request.getItems()) {
@@ -133,7 +133,7 @@ public class OrderServiceImpl implements OrderService {
             );
         }
 
-        //  STEP 2: CREATE ORDER ITEMS
+        //  CREATE ORDER ITEMS
         List<OrderItem> orderItems = mergedItems.entrySet()
                 .stream()
                 .map(entry -> {
@@ -145,6 +145,14 @@ public class OrderServiceImpl implements OrderService {
                             .orElseThrow(() -> new RuntimeException(
                                     "Food item not found with id: " + foodId
                             ));
+
+                    if (quantity == null || quantity <= 0) {
+                        throw new IllegalArgumentException("Invalid quantity for item: " + foodId);
+                    }
+
+                    if (!food.isAvailable()) {
+                        throw new IllegalStateException("Food item not available: " + food.getName());
+                    }
 
                     if (Boolean.TRUE.equals(food.getIsPreparedItem())) {
 
@@ -168,7 +176,7 @@ public class OrderServiceImpl implements OrderService {
 
         order.setOrderItems(orderItems);
 
-        //  STEP 3: TOTAL CALCULATION
+        //  TOTAL CALCULATION
         BigDecimal total = orderItems.stream()
                 .map(item -> item.getFoodItem()
                         .getPrice()
@@ -198,6 +206,7 @@ public class OrderServiceImpl implements OrderService {
         String finalCode = payload + "|" + signature;
 
         saved.setPickupCode(finalCode);
+        saved = orderRepository.save(saved);
 
         cartService.clearCart(user);
 
@@ -439,18 +448,24 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public void cancelOrder(Long orderId) {
 
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        OrderStatus status = order.getStatus();
+        String email = SecurityUtils.getCurrentUserEmail();
+        boolean isAdmin = SecurityUtils.isAdmin();
 
-        if (status == OrderStatus.PAYMENT_PENDING || status == OrderStatus.PENDING) {
-            order.setStatus(OrderStatus.CANCELLED);
-        } else {
-            throw new IllegalStateException("Cannot cancel at this stage");
+        if (!isAdmin && !order.getUser().getEmail().equals(email)) {
+            throw new AccessDeniedException("You are not allowed to cancel this order");
         }
+
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            throw new IllegalStateException("Cannot cancel completed order");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
 
         orderRepository.save(order);
     }
@@ -475,6 +490,7 @@ public class OrderServiceImpl implements OrderService {
         String[] parts = code.split("\\|");
 
         if (parts.length != 3) {
+            log.warn("Invalid QR format: {}", code);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Invalid QR format"
@@ -482,15 +498,26 @@ public class OrderServiceImpl implements OrderService {
         }
 
         String baseCode = parts[0];
-        String orderId = parts[1];
+        String orderIdStr = parts[1];
         String signature = parts[2];
 
-        String payload = baseCode + "|" + orderId;
+        Long orderId;
 
+        try {
+            orderId = Long.parseLong(orderIdStr);
+        } catch (Exception e) {
+            log.warn("Invalid orderId in QR: {}", orderIdStr);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid QR data"
+            );
+        }
 
+        String payload = baseCode + "|" + orderIdStr;
 
         //  VERIFY SIGNATURE
         if (!qrSecurityUtil.verify(payload, signature)) {
+            log.warn("QR signature invalid for payload: {}", payload);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Invalid QR (tampered)"
@@ -498,59 +525,66 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Order order = orderRepository.findByPickupCodeWithDetails(code)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Invalid QR code"
-                ));
+                .orElseThrow(() -> {
+                    log.warn("QR not found in DB: {}", code);
+                    return new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "Invalid QR code"
+                    );
+                });
 
-        if (!order.getId().toString().equals(orderId)) {
+        if (!order.getId().equals(orderId)) {
+            log.warn("QR mismatch: expected {}, found {}", orderId, order.getId());
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "QR mismatch"
             );
         }
 
-        if (order.getQrUsed()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "QR already used");
+        //  STRICT STATE VALIDATION
+        if (order.getStatus() != OrderStatus.READY) {
+            log.warn("Invalid state for verification: {}", order.getStatus());
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Order not ready for pickup"
+            );
         }
 
+        //  QR REUSE CHECK
+        if (Boolean.TRUE.equals(order.getQrUsed())) {
+            log.warn("QR already used for order {}", order.getId());
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "QR already used"
+            );
+        }
+
+        // EXPIRY CHECK
         if (order.getPickupExpiry() != null &&
                 LocalDateTime.now().isAfter(order.getPickupExpiry())) {
 
+            log.warn("QR expired for order {}", order.getId());
             throw new ResponseStatusException(
                     HttpStatus.GONE,
                     "QR expired"
             );
         }
 
-        boolean isLate = false;
-
-        if (order.getStatus() != OrderStatus.READY) {
-            isLate = true;
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Order not ready yet"
-            );
-        }
-
         //  COMPLETE ORDER
         order.setStatus(OrderStatus.COMPLETED);
-
         order.setQrUsed(true);
         order.setQrUsedAt(LocalDateTime.now());
 
         Order saved = orderRepository.save(order);
 
-        // WEBSOCKET EVENT
+        log.info("Order {} verified successfully", saved.getId());
+
+        // 📡 WEBSOCKET EVENT
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
         eventPublisher.publishEvent(
                 new OrderStatusUpdatedEvent(response)
         );
-
-        if (isLate) {
-            log.warn("Late pickup for order {}", order.getId());
-        }
 
         return response;
     }

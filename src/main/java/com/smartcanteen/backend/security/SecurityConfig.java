@@ -63,12 +63,15 @@ public class SecurityConfig {
                                 "/topic/**",
                                 "/ws/**",
                                 "/test/**",
-                                "/canteen"
+                                "/canteen",
+                                "/manager/scanner-session/validate"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/menu").permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/orders/verify").permitAll()
 
                         .requestMatchers(
                                 "/",
