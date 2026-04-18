@@ -172,7 +172,7 @@ public class OrderServiceImpl implements OrderService {
 
                     return orderItem;
                 })
-                .toList();
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
 
         order.setOrderItems(orderItems);
 
