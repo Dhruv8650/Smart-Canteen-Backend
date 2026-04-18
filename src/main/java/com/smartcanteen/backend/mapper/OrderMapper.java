@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class OrderMapper {
 
@@ -23,6 +24,7 @@ public class OrderMapper {
                 order.getUser().getEmail(),
                 order.getUser().getRole(),
                 order.getUser().isActive()
+
         );
 
         // ORDER ITEMS → FOOD DTOs
@@ -42,7 +44,7 @@ public class OrderMapper {
                             food.getMaxPerOrder()
                     );
                 })
-                .toList();
+                .collect(Collectors.toList());
 
         // TIME CALCULATION
         Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now(ZoneOffset.UTC));
@@ -69,7 +71,7 @@ public class OrderMapper {
 
         //  QR + INVOICE LOGIC
 
-        boolean showQr = order.getStatus() == OrderStatus.READY;
+        boolean showQr = order.getStatus() == OrderStatus.READY && !order.getQrUsed();
 
         String pickupCode = showQr
                 ? order.getPickupCode()   // only expose when READY
@@ -82,6 +84,9 @@ public class OrderMapper {
                 order.getTotalAmount(),
                 order.getStatus(),
                 order.getCreatedAt(),
+                order.getOrderType() != null
+                        ? order.getOrderType().name()
+                        : "UNKNOWN",
 
                 // EXISTING FIELDS
                 "ORD-" + order.getId(),

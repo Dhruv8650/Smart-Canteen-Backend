@@ -4,6 +4,7 @@ import com.smartcanteen.backend.entity.ScannerSession;
 import com.smartcanteen.backend.repository.ScannerSessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -14,10 +15,11 @@ public class ScannerSessionService {
 
     private final ScannerSessionRepository repository;
 
+    @Transactional
     public ScannerSession createSession(String managerEmail) {
 
         // remove old session (optional: only one active)
-        repository.deleteByManagerEmail(managerEmail);
+        repository.deactivateByManagerEmail(managerEmail);
 
         String token = UUID.randomUUID().toString();
 
@@ -31,8 +33,10 @@ public class ScannerSessionService {
         return repository.save(session);
     }
 
+    @Transactional
     public void revokeSession(String managerEmail) {
-        repository.deleteByManagerEmail(managerEmail);
+
+        repository.deactivateByManagerEmail(managerEmail);
     }
 
     public boolean isValid(String token) {

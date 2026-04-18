@@ -56,6 +56,10 @@ public class Order {
 
     private LocalDateTime pickupExpiry;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderType orderType;
+
     public Order() {}
 
     @PrePersist
@@ -104,5 +108,9 @@ public class Order {
 
     public void setQrUsedAt(LocalDateTime qrUsedAt) {
         this.qrUsedAt = qrUsedAt;
+    }
+
+    public void setOrderType(OrderType orderType) {
+        this.orderType = orderType;
     }
 }

@@ -58,36 +58,42 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
 
-        //  Only PAYMENT_PENDING
         if(order.getStatus() != OrderStatus.PAYMENT_PENDING){
             throw new IllegalStateException("Order is not waiting for payment");
         }
 
-        //  Only CASH
         if(order.getPaymentMethod() != PaymentMethod.CASH){
             throw new IllegalStateException("Only cash orders can be approved");
         }
+        // Null Safety
+        if (order.getOrderType() == null) {
+            log.warn("OrderType is null for orderId: {}. Defaulting to PREPARED", orderId);
+            order.setOrderType(OrderType.PREPARED);
+        }
 
-        order.setStatus(OrderStatus.PENDING);
+        if (OrderType.READYMADE.equals(order.getOrderType()))  {
+            order.setStatus(OrderStatus.READY);
+            order.setReadyAt(LocalDateTime.now());
+        } else {
+            order.setStatus(OrderStatus.PENDING);
+        }
 
         Order updated = orderRepository.save(order);
 
         OrderResponseDTO response = OrderMapper.toDTO(updated);
 
-        //  event
         eventPublisher.publishEvent(new OrderStatusUpdatedEvent(response));
 
         log.info("Payment approved for orderId: {}", orderId);
 
-        return response; //
+        return response;
     }
-
 
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
 
-        // CANTEEN CHECK
+        //  CANTEEN CHECK
         if (!canteenService.canAcceptOrders()) {
             log.warn("Order blocked - canteen is closed for user: {}", userEmail);
             throw new RuntimeException("Canteen is not accepting orders");
@@ -95,7 +101,7 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Placing order for user: {}", userEmail);
 
-        //  Fetch user
+        // FETCH USER
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
@@ -107,22 +113,12 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalArgumentException("Payment method is required");
         }
 
-        //  Create Order
+        // CREATE ORDER
         Order order = new Order();
         order.setUser(user);
         order.setPaymentMethod(request.getPaymentMethod());
 
-        //  PAYMENT LOGIC (CORE)
-        if (request.getPaymentMethod() == PaymentMethod.CASH) {
-            order.setStatus(OrderStatus.PAYMENT_PENDING);
-        } else if (request.getPaymentMethod() == PaymentMethod.UPI) {
-            // UPI (demo online payment)
-            order.setStatus(OrderStatus.PENDING);
-        } else {
-            throw new IllegalStateException("Unsupported payment method");
-        }
-
-        //   MERGE DUPLICATE ITEMS
+        // MERGE DUPLICATE ITEMS
         Map<Long, Integer> mergedItems = new HashMap<>();
 
         for (OrderItemRequestDTO item : request.getItems()) {
@@ -133,7 +129,7 @@ public class OrderServiceImpl implements OrderService {
             );
         }
 
-        //  CREATE ORDER ITEMS
+        // CREATE ORDER ITEMS
         List<OrderItem> orderItems = mergedItems.entrySet()
                 .stream()
                 .map(entry -> {
@@ -154,6 +150,7 @@ public class OrderServiceImpl implements OrderService {
                         throw new IllegalStateException("Food item not available: " + food.getName());
                     }
 
+                    // Max limit only for prepared items
                     if (Boolean.TRUE.equals(food.getIsPreparedItem())) {
 
                         if (food.getMaxPerOrder() != null &&
@@ -172,9 +169,42 @@ public class OrderServiceImpl implements OrderService {
 
                     return orderItem;
                 })
+                //  IMPORTANT: Mutable list for JPA
                 .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
 
         order.setOrderItems(orderItems);
+
+        // DETECT PREPARATION REQUIREMENT
+        boolean requiresPreparation = orderItems.stream()
+                .anyMatch(item ->
+                        Boolean.TRUE.equals(item.getFoodItem().getIsPreparedItem())
+                );
+
+        OrderType orderType = requiresPreparation
+                ? OrderType.PREPARED
+                : OrderType.READYMADE;
+
+        order.setOrderType(orderType);
+
+        log.info("Order type: {}", orderType);
+
+        // STATUS LOGIC
+        if (orderType == OrderType.READYMADE) {
+
+            if (request.getPaymentMethod() == PaymentMethod.CASH) {
+                order.setStatus(OrderStatus.PAYMENT_PENDING);
+            } else {
+                order.setStatus(OrderStatus.READY);
+                order.setReadyAt(LocalDateTime.now());
+            }
+
+        } else {
+            if (request.getPaymentMethod() == PaymentMethod.CASH) {
+                order.setStatus(OrderStatus.PAYMENT_PENDING);
+            } else {
+                order.setStatus(OrderStatus.PENDING);
+            }
+        }
 
         //  TOTAL CALCULATION
         BigDecimal total = orderItems.stream()
@@ -185,39 +215,32 @@ public class OrderServiceImpl implements OrderService {
 
         order.setTotalAmount(total);
 
-
         //  SAVE ORDER
         Order saved = orderRepository.save(order);
 
-        try {
-            saved = orderRepository.findByIdWithItems(saved.getId())
-                    .orElseThrow(() -> new RuntimeException("Order not found after save"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
-        }
+        //  FETCH WITH RELATIONS (SAFE)
+        saved = orderRepository.findByIdWithItems(saved.getId())
+                .orElseThrow(() -> new RuntimeException("Order not found after save"));
 
+        //  QR GENERATION
         String baseCode = generatePickupCode(saved.getId());
-
         String payload = baseCode + "|" + saved.getId();
-
         String signature = qrSecurityUtil.generateSignature(payload);
-
         String finalCode = payload + "|" + signature;
 
         saved.setPickupCode(finalCode);
         saved = orderRepository.save(saved);
 
+        //  CLEAR CART
         cartService.clearCart(user);
-
         log.info("Cart cleared for user: {}", user.getEmail());
 
         log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
 
-        //  MAP TO DTO
+        // MAP RESPONSE
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
-        //  EVENT (WebSocket / realtime)
+        //  EVENT (WebSocket)
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         return response;
