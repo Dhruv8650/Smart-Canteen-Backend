@@ -598,23 +598,29 @@ public class OrderServiceImpl implements OrderService {
             );
         }
 
-        //  STRICT STATE VALIDATION
+        //  QR REUSE CHECK
+        if (Boolean.TRUE.equals(order.getQrUsed()) ||
+                order.getStatus() == OrderStatus.COMPLETED) {
+
+            log.warn("QR already used for order {}", order.getId());
+
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "QR already used"
+            );
+        }
+
+        // STRICT STATE VALIDATION
         if (order.getStatus() != OrderStatus.READY) {
+
             log.warn("Invalid state for verification: {}", order.getStatus());
+
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "Order not ready for pickup"
             );
         }
 
-        //  QR REUSE CHECK
-        if (Boolean.TRUE.equals(order.getQrUsed())) {
-            log.warn("QR already used for order {}", order.getId());
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "QR already used"
-            );
-        }
 
         // EXPIRY CHECK
         if (order.getPickupExpiry() != null &&
