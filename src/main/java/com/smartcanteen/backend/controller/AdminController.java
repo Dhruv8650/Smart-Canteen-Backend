@@ -1,6 +1,7 @@
 package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
+import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.request.UpdateUserRoleDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.response.UserResponseDTO;
@@ -11,9 +12,11 @@ import com.smartcanteen.backend.entity.Role;
 import com.smartcanteen.backend.service.CanteenService;
 import com.smartcanteen.backend.service.OrderService;
 import com.smartcanteen.backend.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -41,6 +44,26 @@ public class AdminController {
                         .build()
         );
     }
+
+    @PostMapping("/pos/orders")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<OrderResponseDTO>> placePosOrder(
+            @Valid @RequestBody OrderRequestDTO request,
+            Authentication authentication
+    ) {
+        String adminEmail = authentication.getName();
+
+        OrderResponseDTO order = orderService.placePosOrder(request, adminEmail);
+
+        return ResponseEntity.ok(
+                ApiResponse.<OrderResponseDTO>builder()
+                        .success(true)
+                        .message("POS order placed successfully")
+                        .data(order)
+                        .build()
+        );
+    }
+
 
     //  PROMOTE USER (CORE API)
     @PatchMapping("/users/{userId}/role")

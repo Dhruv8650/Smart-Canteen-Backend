@@ -11,6 +11,8 @@ import java.util.List;
 public interface OrderService {
     OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail);
 
+    OrderResponseDTO placePosOrder(OrderRequestDTO request, String adminEmail);
+
     List<OrderResponseDTO> getUserOrder(String userEmail);
 
     OrderResponseDTO getOrderById(Long orderId);

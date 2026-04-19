@@ -9,7 +9,6 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
 
 import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.TextAlignment;
@@ -17,6 +16,7 @@ import com.smartcanteen.backend.dto.response.InvoiceResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderItemDTO;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderItem;
+import com.smartcanteen.backend.entity.OrderSource;
 import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.InvoiceService;
@@ -41,8 +41,11 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Override
     public byte[] generateInvoice(Long orderId) {
 
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithInvoiceDetails(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        boolean isPosOrder = order.getSource() == OrderSource.POS;
+
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
@@ -63,12 +66,21 @@ public class InvoiceServiceImpl implements InvoiceService {
             // ===== ORDER INFO =====
             document.add(new Paragraph(String.format("Order ID:        #%d", order.getId())));
             document.add(new Paragraph(String.format("Date:            %s", order.getCreatedAt())));
+            document.add(new Paragraph(String.format("Payment Method:  %s", order.getPaymentMethod())));
             document.add(new Paragraph("\n"));
 
-            // ===== CUSTOMER =====
-            document.add(new Paragraph(String.format("Customer Name:   %s", order.getUser().getName())));
-            document.add(new Paragraph(String.format("Email:           %s", order.getUser().getEmail())));
+            // ===== CUSTOMER / POS INFO =====
+            if (isPosOrder) {
+                document.add(new Paragraph(String.format("Order Source:    %s", "POS")));
+                document.add(new Paragraph(String.format("Cashier Name:    %s", order.getUser().getName())));
+                document.add(new Paragraph(String.format("Cashier Email:   %s", order.getUser().getEmail())));
+            } else {
+                document.add(new Paragraph(String.format("Order Source:    %s", "USER")));
+                document.add(new Paragraph(String.format("Customer Name:   %s", order.getUser().getName())));
+                document.add(new Paragraph(String.format("Email:           %s", order.getUser().getEmail())));
+            }
             document.add(new Paragraph("\n"));
+
 
             // ===== ITEMS =====
             document.add(new Paragraph("--------------------------------------------------"));
@@ -79,7 +91,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             for (OrderItem item : order.getOrderItems()) {
                 document.add(new Paragraph(
-                        String.format("%-20s %-10d ₹%.2f",
+                        String.format("%-20s %-10d Rs.%.2f",
                                 item.getFoodItem().getName(),
                                 item.getQuantity(),
                                 item.getFoodItem().getPrice()
@@ -91,7 +103,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             // ===== TOTAL =====
             document.add(new Paragraph(
-                    String.format("TOTAL (Incl. Taxes):          ₹%.2f", order.getTotalAmount())
+                    String.format("TOTAL (Incl. Taxes):          Rs.%.2f", order.getTotalAmount())
             ));
 
             document.add(new Paragraph("\n--------------------------------------------------"));
@@ -100,6 +112,10 @@ public class InvoiceServiceImpl implements InvoiceService {
             document.add(new Paragraph(
                     String.format(" Pickup Code: %s", order.getPickupCode())
             ));
+            document.add(new Paragraph(
+                    String.format(" Status:      %s", order.getStatus())
+            ));
+
 
             document.add(new Paragraph("--------------------------------------------------\n"));
 
@@ -114,7 +130,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             qrImage.setHeight(120);
             qrImage.setHorizontalAlignment(HorizontalAlignment.CENTER);
 
-            document.add(new Paragraph("🔳 Scan for Pickup")
+            document.add(new Paragraph("Scan for Pickup")
                     .setTextAlignment(TextAlignment.CENTER));
 
             document.add(qrImage);
@@ -138,7 +154,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     // OPTIONAL: API data for frontend
     public InvoiceResponseDTO getInvoiceData(Long orderId) {
 
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithInvoiceDetails(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         String currentUserEmail = SecurityUtils.getCurrentUserEmail();

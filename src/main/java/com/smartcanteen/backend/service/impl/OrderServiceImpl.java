@@ -92,7 +92,20 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
+        return placeOrderInternal(request, userEmail, OrderSource.USER);
+    }
 
+    @Override
+    @Transactional
+    public OrderResponseDTO placePosOrder(OrderRequestDTO request, String adminEmail) {
+        return placeOrderInternal(request, adminEmail, OrderSource.POS);
+    }
+
+    private OrderResponseDTO placeOrderInternal(
+            OrderRequestDTO request,
+            String userEmail,
+            OrderSource source
+    ) {
         //  CANTEEN CHECK
         if (!canteenService.canAcceptOrders()) {
             log.warn("Order blocked - canteen is closed for user: {}", userEmail);
@@ -117,6 +130,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = new Order();
         order.setUser(user);
         order.setPaymentMethod(request.getPaymentMethod());
+        order.setSource(source);
 
         // MERGE DUPLICATE ITEMS
         Map<Long, Integer> mergedItems = new HashMap<>();
@@ -188,23 +202,39 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("Order type: {}", orderType);
 
-        // STATUS LOGIC
-        if (orderType == OrderType.READYMADE) {
+        boolean isPosOrder = source == OrderSource.POS;
 
-            if (request.getPaymentMethod() == PaymentMethod.CASH) {
-                order.setStatus(OrderStatus.PAYMENT_PENDING);
-            } else {
+        // STATUS LOGIC
+        if (isPosOrder) {
+
+            if (orderType == OrderType.READYMADE) {
                 order.setStatus(OrderStatus.READY);
                 order.setReadyAt(LocalDateTime.now());
-            }
-
-        } else {
-            if (request.getPaymentMethod() == PaymentMethod.CASH) {
-                order.setStatus(OrderStatus.PAYMENT_PENDING);
             } else {
                 order.setStatus(OrderStatus.PENDING);
             }
+
+        } else {
+
+            if (orderType == OrderType.READYMADE) {
+
+                if (request.getPaymentMethod() == PaymentMethod.CASH) {
+                    order.setStatus(OrderStatus.PAYMENT_PENDING);
+                } else {
+                    order.setStatus(OrderStatus.READY);
+                    order.setReadyAt(LocalDateTime.now());
+                }
+
+            } else {
+
+                if (request.getPaymentMethod() == PaymentMethod.CASH) {
+                    order.setStatus(OrderStatus.PAYMENT_PENDING);
+                } else {
+                    order.setStatus(OrderStatus.PENDING);
+                }
+            }
         }
+
 
         //  TOTAL CALCULATION
         BigDecimal total = orderItems.stream()
@@ -231,9 +261,13 @@ public class OrderServiceImpl implements OrderService {
         saved.setPickupCode(finalCode);
         saved = orderRepository.save(saved);
 
-        //  CLEAR CART
-        cartService.clearCart(user);
-        log.info("Cart cleared for user: {}", user.getEmail());
+        //  CLEAR CART ONLY FOR USER ORDERS
+        if (saved.getSource() == null || saved.getSource() == OrderSource.USER) {
+            cartService.clearCart(user);
+            log.info("Cart cleared for user: {}", user.getEmail());
+        }
+
+
 
         log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
 

@@ -60,10 +60,19 @@ public class Order {
     @Column(nullable = false)
     private OrderType orderType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source")
+    private OrderSource source = OrderSource.USER;
+
+
     public Order() {}
 
     @PrePersist
     protected void onCreate() {
+        if (this.source == null) {
+            this.source = OrderSource.USER;
+        }
+
         this.createdAt = LocalDateTime.now();
     }
 
@@ -113,4 +122,9 @@ public class Order {
     public void setOrderType(OrderType orderType) {
         this.orderType = orderType;
     }
+
+    public void setSource(OrderSource source) {
+        this.source = source;
+    }
+
 }
