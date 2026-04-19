@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Service
@@ -27,7 +28,7 @@ public class ScannerSessionService {
                 .token(token)
                 .managerEmail(managerEmail)
                 .active(true)
-                .expiresAt(LocalDateTime.now().plusMinutes(30))
+                .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(30))
                 .build();
 
         return repository.save(session);
@@ -42,7 +43,7 @@ public class ScannerSessionService {
     public boolean isValid(String token) {
 
         return repository.findByTokenAndActiveTrue(token)
-                .filter(s -> s.getExpiresAt().isAfter(LocalDateTime.now()))
+                .filter(s -> s.getExpiresAt().isAfter(LocalDateTime.now(ZoneOffset.UTC)))
                 .isPresent();
     }
 

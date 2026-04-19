@@ -30,8 +30,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-        System.out.println("REQUEST PATH: " + request.getServletPath());
+        String path = request.getServletPath();
+        System.out.println("REQUEST PATH: " + path);
+
+        if (path.equals("/manager/scanner-session/validate")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (path.equals("/orders/verify")) {
+            if (SecurityContextHolder.getContext().getAuthentication() != null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            String authHeader = request.getHeader("Authorization");
+
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            String token = authHeader.substring(7).trim();
+
+            if (!token.contains(".")) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+        }
+
 
         //  Skip public/auth endpoints
         if (

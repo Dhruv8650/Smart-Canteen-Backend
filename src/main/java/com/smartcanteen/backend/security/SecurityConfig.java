@@ -18,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ScannerSessionFilter scannerSessionFilter;
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
@@ -63,13 +64,16 @@ public class SecurityConfig {
                                 "/topic/**",
                                 "/ws/**",
                                 "/test/**",
-                                "/canteen",
-                                "/manager/scanner-session/validate"
+                                "/canteen"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/menu").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/manager/scanner-session/validate").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/orders/verify").permitAll()
 
                         .requestMatchers(HttpMethod.POST, "/orders/verify").permitAll()
 
@@ -97,8 +101,8 @@ public class SecurityConfig {
                         .accessDeniedHandler(customAccessDeniedHandler)
                 )
 
-                .addFilterBefore(jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(scannerSessionFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
