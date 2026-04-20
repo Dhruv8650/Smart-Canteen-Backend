@@ -28,7 +28,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -322,9 +324,11 @@ public class OrderServiceImpl implements OrderService {
                 if (request.getPaymentMethod() == PaymentMethod.CASH) {
                     order.setStatus(OrderStatus.PAYMENT_PENDING);
                 } else {
+                    LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
                     order.setStatus(OrderStatus.READY);
-                    order.setReadyAt(LocalDateTime.now());
-                    order.setPickupExpiry(LocalDateTime.now().plusMinutes(20));
+                    order.setReadyAt(nowUtc);
+                    order.setPickupExpiry(nowUtc.plusMinutes(45));
+
                 }
 
             } else {
@@ -507,9 +511,11 @@ public class OrderServiceImpl implements OrderService {
                 });
 
         if (newStatus == OrderStatus.READY) {
-            order.setReadyAt(LocalDateTime.now());
-            order.setPickupExpiry(LocalDateTime.now().plusMinutes(20));
+            LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
+            order.setReadyAt(nowUtc);
+            order.setPickupExpiry(nowUtc.plusMinutes(45));
         }
+
 
         //  AUTH CHECK
         if (SecurityUtils.getCurrentUserRole() == null) {
@@ -734,15 +740,28 @@ public class OrderServiceImpl implements OrderService {
 
 
         // EXPIRY CHECK
-        if (order.getPickupExpiry() != null &&
-                LocalDateTime.now().isAfter(order.getPickupExpiry())) {
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
 
-            log.warn("QR expired for order {}", order.getId());
-            throw new ResponseStatusException(
-                    HttpStatus.GONE,
-                    "QR expired"
-            );
+        if (order.getPickupExpiry() != null) {
+            long diffSeconds = Duration.between(nowUtc, order.getPickupExpiry()).getSeconds();
+
+            log.warn("QR expiry check -> orderId={}, nowUtc={}, expiryUtc={}, diffSeconds={}, status={}, qrUsed={}",
+                    order.getId(),
+                    nowUtc,
+                    order.getPickupExpiry(),
+                    diffSeconds,
+                    order.getStatus(),
+                    order.getQrUsed());
+
+            if (nowUtc.isAfter(order.getPickupExpiry().plusSeconds(10))) {
+
+                throw new ResponseStatusException(
+                        HttpStatus.GONE,
+                        "QR expired"
+                );
+            }
         }
+
 
         //  COMPLETE ORDER
         order.setStatus(OrderStatus.COMPLETED);
