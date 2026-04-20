@@ -41,6 +41,17 @@ public class Order {
     @Column(nullable = false)
     private PaymentMethod paymentMethod;
 
+    @Column(unique = true)
+    private String paymentId;
+
+    @Column(unique = true)
+    private String paymentOrderId;
+
+    private String paymentSignature;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -96,6 +107,22 @@ public class Order {
 
     public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public void setPaymentId(String paymentId) {
+        this.paymentId = paymentId;
+    }
+
+    public void setPaymentOrderId(String paymentOrderId) {
+        this.paymentOrderId = paymentOrderId;
+    }
+
+    public void setPaymentSignature(String paymentSignature) {
+        this.paymentSignature = paymentSignature;
+    }
+
+    public void setPaymentStatus(PaymentStatus paymentStatus) {
+        this.paymentStatus = paymentStatus;
     }
 
     public void setPickupCode(String pickupCode) {

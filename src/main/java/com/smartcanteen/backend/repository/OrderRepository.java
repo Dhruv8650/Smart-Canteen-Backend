@@ -129,6 +129,10 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
 
     Optional<Order> findByPickupCode(String pickupCode);
 
+    Optional<Order> findByPaymentId(String paymentId);
+
+    Optional<Order> findByPaymentOrderId(String paymentOrderId);
+
     @Query("""
     SELECT COUNT(o) FROM Order o
     WHERE o.status IN ('PENDING', 'PREPARING')

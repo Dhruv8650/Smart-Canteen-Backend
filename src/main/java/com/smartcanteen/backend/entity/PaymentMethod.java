@@ -4,7 +4,8 @@ import lombok.Data;
 
 public enum PaymentMethod {
     CASH,
-    UPI
+    UPI,
+    CARD
 
 
 }

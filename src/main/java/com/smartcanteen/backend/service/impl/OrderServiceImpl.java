@@ -50,6 +50,13 @@ public class OrderServiceImpl implements OrderService {
     private final QrSecurityUtil qrSecurityUtil;
     private final CartService cartService;
 
+    private record ValidatedOrderLine(FoodItem foodItem, int quantity) {}
+
+    private record OrderDraft(User user,
+                              List<ValidatedOrderLine> lines,
+                              OrderType orderType,
+                              BigDecimal totalAmount) {}
+
 
     @Override
     @Transactional
@@ -78,6 +85,8 @@ public class OrderServiceImpl implements OrderService {
             order.setStatus(OrderStatus.PENDING);
         }
 
+        order.setPaymentStatus(PaymentStatus.SUCCESS);
+
         Order updated = orderRepository.save(order);
 
         OrderResponseDTO response = OrderMapper.toDTO(updated);
@@ -92,22 +101,91 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponseDTO placeOrder(OrderRequestDTO request, String userEmail) {
-        return placeOrderInternal(request, userEmail, OrderSource.USER);
+        return placeOrderInternal(request, userEmail, OrderSource.USER, null, null, null, null, null);
     }
 
     @Override
     @Transactional
     public OrderResponseDTO placePosOrder(OrderRequestDTO request, String adminEmail) {
-        return placeOrderInternal(request, adminEmail, OrderSource.POS);
+        return placeOrderInternal(
+                request,
+                adminEmail,
+                OrderSource.POS,
+                null,
+                null,
+                null,
+                PaymentStatus.SUCCESS,
+                null
+        );
+    }
+
+    @Override
+    public BigDecimal calculateOrderAmount(OrderRequestDTO request, String userEmail) {
+        return prepareOrderDraft(request, userEmail, true, null).totalAmount();
+    }
+
+    @Override
+    @Transactional
+    public OrderResponseDTO placeVerifiedOnlineOrder(OrderRequestDTO request,
+                                                     String userEmail,
+                                                     String paymentOrderId,
+                                                     String paymentId,
+                                                     String paymentSignature,
+                                                     BigDecimal paidAmount) {
+        if (request.getPaymentMethod() == null || request.getPaymentMethod() == PaymentMethod.CASH) {
+            throw new IllegalArgumentException("Verified online orders require UPI or CARD");
+        }
+
+        return placeOrderInternal(
+                request,
+                userEmail,
+                OrderSource.USER,
+                paymentOrderId,
+                paymentId,
+                paymentSignature,
+                PaymentStatus.SUCCESS,
+                paidAmount
+        );
     }
 
     private OrderResponseDTO placeOrderInternal(
             OrderRequestDTO request,
             String userEmail,
-            OrderSource source
+            OrderSource source,
+            String paymentOrderId,
+            String paymentId,
+            String paymentSignature,
+            PaymentStatus paymentStatusOverride,
+            BigDecimal totalAmountOverride
     ) {
-        //  CANTEEN CHECK
-        if (!canteenService.canAcceptOrders()) {
+        if (source == OrderSource.USER &&
+                request.getPaymentMethod() != PaymentMethod.CASH &&
+                paymentStatusOverride != PaymentStatus.SUCCESS) {
+            throw new IllegalArgumentException("Use /payments/create-order for online payments");
+        }
+
+        boolean enforceRealtimeChecks = !(source == OrderSource.USER &&
+                paymentStatusOverride == PaymentStatus.SUCCESS &&
+                request.getPaymentMethod() != PaymentMethod.CASH);
+
+        OrderDraft draft = prepareOrderDraft(request, userEmail, enforceRealtimeChecks, totalAmountOverride);
+
+        return persistOrder(
+                request,
+                draft,
+                source,
+                paymentOrderId,
+                paymentId,
+                paymentSignature,
+                paymentStatusOverride
+        );
+    }
+
+    private OrderDraft prepareOrderDraft(OrderRequestDTO request,
+                                         String userEmail,
+                                         boolean enforceRealtimeChecks,
+                                         BigDecimal totalAmountOverride) {
+        if (enforceRealtimeChecks && !canteenService.canAcceptOrders()) {
             log.warn("Order blocked - canteen is closed for user: {}", userEmail);
             throw new RuntimeException("Canteen is not accepting orders");
         }
@@ -126,12 +204,6 @@ public class OrderServiceImpl implements OrderService {
             throw new IllegalArgumentException("Payment method is required");
         }
 
-        // CREATE ORDER
-        Order order = new Order();
-        order.setUser(user);
-        order.setPaymentMethod(request.getPaymentMethod());
-        order.setSource(source);
-
         // MERGE DUPLICATE ITEMS
         Map<Long, Integer> mergedItems = new HashMap<>();
 
@@ -143,8 +215,7 @@ public class OrderServiceImpl implements OrderService {
             );
         }
 
-        // CREATE ORDER ITEMS
-        List<OrderItem> orderItems = mergedItems.entrySet()
+        List<ValidatedOrderLine> lines = mergedItems.entrySet()
                 .stream()
                 .map(entry -> {
 
@@ -160,12 +231,12 @@ public class OrderServiceImpl implements OrderService {
                         throw new IllegalArgumentException("Invalid quantity for item: " + foodId);
                     }
 
-                    if (!food.isAvailable()) {
+                    if (enforceRealtimeChecks && !food.isAvailable()) {
                         throw new IllegalStateException("Food item not available: " + food.getName());
                     }
 
                     // Max limit only for prepared items
-                    if (Boolean.TRUE.equals(food.getIsPreparedItem())) {
+                    if (enforceRealtimeChecks && Boolean.TRUE.equals(food.getIsPreparedItem())) {
 
                         if (food.getMaxPerOrder() != null &&
                                 quantity > food.getMaxPerOrder()) {
@@ -176,38 +247,68 @@ public class OrderServiceImpl implements OrderService {
                         }
                     }
 
-                    OrderItem orderItem = new OrderItem();
-                    orderItem.setFoodItem(food);
-                    orderItem.setQuantity(quantity);
-                    orderItem.setOrder(order);
-
-                    return orderItem;
+                    return new ValidatedOrderLine(food, quantity);
                 })
-                //  IMPORTANT: Mutable list for JPA
                 .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
 
-        order.setOrderItems(orderItems);
-
         // DETECT PREPARATION REQUIREMENT
-        boolean requiresPreparation = orderItems.stream()
+        boolean requiresPreparation = lines.stream()
                 .anyMatch(item ->
-                        Boolean.TRUE.equals(item.getFoodItem().getIsPreparedItem())
+                        Boolean.TRUE.equals(item.foodItem().getIsPreparedItem())
                 );
 
         OrderType orderType = requiresPreparation
                 ? OrderType.PREPARED
                 : OrderType.READYMADE;
 
-        order.setOrderType(orderType);
-
         log.info("Order type: {}", orderType);
+
+        BigDecimal total = totalAmountOverride != null
+                ? totalAmountOverride
+                : lines.stream()
+                .map(item -> item.foodItem()
+                        .getPrice()
+                        .multiply(BigDecimal.valueOf(item.quantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new OrderDraft(user, lines, orderType, total);
+    }
+
+    private OrderResponseDTO persistOrder(OrderRequestDTO request,
+                                          OrderDraft draft,
+                                          OrderSource source,
+                                          String paymentOrderId,
+                                          String paymentId,
+                                          String paymentSignature,
+                                          PaymentStatus paymentStatusOverride) {
+        Order order = new Order();
+        order.setUser(draft.user());
+        order.setPaymentMethod(request.getPaymentMethod());
+        order.setSource(source);
+        order.setOrderType(draft.orderType());
+        order.setTotalAmount(draft.totalAmount());
+        order.setPaymentOrderId(paymentOrderId);
+        order.setPaymentId(paymentId);
+        order.setPaymentSignature(paymentSignature);
+        order.setPaymentStatus(resolvePaymentStatus(request.getPaymentMethod(), source, paymentStatusOverride));
+
+        List<OrderItem> orderItems = draft.lines().stream()
+                .map(line -> {
+                    OrderItem orderItem = new OrderItem();
+                    orderItem.setFoodItem(line.foodItem());
+                    orderItem.setQuantity(line.quantity());
+                    orderItem.setOrder(order);
+                    return orderItem;
+                })
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+
+        order.setOrderItems(orderItems);
 
         boolean isPosOrder = source == OrderSource.POS;
 
-        // STATUS LOGIC
         if (isPosOrder) {
 
-            if (orderType == OrderType.READYMADE) {
+            if (draft.orderType() == OrderType.READYMADE) {
                 order.setStatus(OrderStatus.READY);
                 order.setReadyAt(LocalDateTime.now());
             } else {
@@ -216,16 +317,18 @@ public class OrderServiceImpl implements OrderService {
 
         } else {
 
-            if (orderType == OrderType.READYMADE) {
+            if (draft.orderType() == OrderType.READYMADE) {
 
                 if (request.getPaymentMethod() == PaymentMethod.CASH) {
                     order.setStatus(OrderStatus.PAYMENT_PENDING);
                 } else {
                     order.setStatus(OrderStatus.READY);
                     order.setReadyAt(LocalDateTime.now());
+                    order.setPickupExpiry(LocalDateTime.now().plusMinutes(20));
                 }
 
             } else {
+
 
                 if (request.getPaymentMethod() == PaymentMethod.CASH) {
                     order.setStatus(OrderStatus.PAYMENT_PENDING);
@@ -234,16 +337,6 @@ public class OrderServiceImpl implements OrderService {
                 }
             }
         }
-
-
-        //  TOTAL CALCULATION
-        BigDecimal total = orderItems.stream()
-                .map(item -> item.getFoodItem()
-                        .getPrice()
-                        .multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        order.setTotalAmount(total);
 
         //  SAVE ORDER
         Order saved = orderRepository.save(order);
@@ -263,8 +356,8 @@ public class OrderServiceImpl implements OrderService {
 
         //  CLEAR CART ONLY FOR USER ORDERS
         if (saved.getSource() == null || saved.getSource() == OrderSource.USER) {
-            cartService.clearCart(user);
-            log.info("Cart cleared for user: {}", user.getEmail());
+            cartService.clearCart(draft.user());
+            log.info("Cart cleared for user: {}", draft.user().getEmail());
         }
 
 
@@ -278,6 +371,24 @@ public class OrderServiceImpl implements OrderService {
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         return response;
+    }
+
+    private PaymentStatus resolvePaymentStatus(PaymentMethod paymentMethod,
+                                               OrderSource source,
+                                               PaymentStatus paymentStatusOverride) {
+        if (paymentStatusOverride != null) {
+            return paymentStatusOverride;
+        }
+
+        if (source == OrderSource.POS) {
+            return PaymentStatus.SUCCESS;
+        }
+
+        if (paymentMethod == PaymentMethod.CASH) {
+            return PaymentStatus.INITIATED;
+        }
+
+        return PaymentStatus.SUCCESS;
     }
 
     @Transactional

@@ -19,19 +19,17 @@ public class ScannerSessionService {
     @Transactional
     public ScannerSession createSession(String managerEmail) {
 
-        // remove old session (optional: only one active)
-        repository.deactivateByManagerEmail(managerEmail);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
 
-        String token = UUID.randomUUID().toString();
-
-        ScannerSession session = ScannerSession.builder()
-                .token(token)
-                .managerEmail(managerEmail)
-                .active(true)
-                .expiresAt(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(30))
-                .build();
-
-        return repository.save(session);
+        return repository.findFirstByManagerEmailAndActiveTrueAndExpiresAtAfter(managerEmail, now)
+                .orElseGet(() -> repository.save(
+                        ScannerSession.builder()
+                                .token(UUID.randomUUID().toString())
+                                .managerEmail(managerEmail)
+                                .active(true)
+                                .expiresAt(now.plusMinutes(30))
+                                .build()
+                ));
     }
 
     @Transactional

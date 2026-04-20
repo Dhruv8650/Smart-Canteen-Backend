@@ -77,6 +77,8 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/orders/verify").permitAll()
 
+                        .requestMatchers(HttpMethod.POST, "/payments/webhook").permitAll()
+
                         .requestMatchers(
                                 "/",
                                 "/health",
