@@ -49,11 +49,20 @@ public class ScannerSessionController {
     }
 
     @GetMapping("/validate")
-    public ResponseEntity<?> validate(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> validate(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestParam(value = "token", required = false) String tokenParam
+    ) {
 
-        String token = authHeader.replace("Bearer ", "");
+        String token = null;
 
-        boolean valid = service.isValid(token);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7).trim();
+        } else if (tokenParam != null && !tokenParam.isBlank()) {
+            token = tokenParam.trim();
+        }
+
+        boolean valid = token != null && !token.isBlank() && service.isValid(token);
 
         return ResponseEntity.ok(Map.of("valid", valid));
     }

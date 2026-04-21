@@ -81,8 +81,10 @@ public class OrderServiceImpl implements OrderService {
         }
 
         if (OrderType.READYMADE.equals(order.getOrderType()))  {
+            LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
             order.setStatus(OrderStatus.READY);
-            order.setReadyAt(LocalDateTime.now());
+            order.setReadyAt(nowUtc);
+            order.setPickupExpiry(nowUtc.plusMinutes(45));
         } else {
             order.setStatus(OrderStatus.PENDING);
         }
@@ -311,8 +313,10 @@ public class OrderServiceImpl implements OrderService {
         if (isPosOrder) {
 
             if (draft.orderType() == OrderType.READYMADE) {
+                LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
                 order.setStatus(OrderStatus.READY);
-                order.setReadyAt(LocalDateTime.now());
+                order.setReadyAt(nowUtc);
+                order.setPickupExpiry(nowUtc.plusMinutes(45));
             } else {
                 order.setStatus(OrderStatus.PENDING);
             }
@@ -550,10 +554,11 @@ public class OrderServiceImpl implements OrderService {
         validateStatusTransition(order.getStatus(), newStatus);
 
         order.setStatus(newStatus);
+        Order saved = orderRepository.save(order);
 
         log.info("Order {} status updated to {}", orderId, newStatus);
 
-        OrderResponseDTO response = OrderMapper.toDTO(order);
+        OrderResponseDTO response = OrderMapper.toDTO(saved);
 
         //  EVENT
         eventPublisher.publishEvent(new OrderStatusUpdatedEvent(response));
@@ -766,7 +771,7 @@ public class OrderServiceImpl implements OrderService {
         //  COMPLETE ORDER
         order.setStatus(OrderStatus.COMPLETED);
         order.setQrUsed(true);
-        order.setQrUsedAt(LocalDateTime.now());
+        order.setQrUsedAt(LocalDateTime.now(ZoneOffset.UTC));
 
         Order saved = orderRepository.save(order);
 

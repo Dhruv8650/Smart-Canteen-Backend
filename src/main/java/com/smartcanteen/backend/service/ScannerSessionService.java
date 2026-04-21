@@ -39,14 +39,16 @@ public class ScannerSessionService {
     }
 
     public boolean isValid(String token) {
-
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
         return repository.findByTokenAndActiveTrue(token)
-                .filter(s -> s.getExpiresAt().isAfter(LocalDateTime.now(ZoneOffset.UTC)))
+                .filter(s -> s.getExpiresAt().isAfter(nowUtc))
                 .isPresent();
     }
 
     public String getManagerEmail(String token) {
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
         return repository.findByTokenAndActiveTrue(token)
+                .filter(s -> s.getExpiresAt().isAfter(nowUtc))
                 .map(ScannerSession::getManagerEmail)
                 .orElse(null);
     }
