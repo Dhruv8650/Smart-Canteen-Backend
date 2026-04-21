@@ -29,7 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
@@ -745,20 +747,27 @@ public class OrderServiceImpl implements OrderService {
 
 
         // EXPIRY CHECK
-        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
-
         if (order.getPickupExpiry() != null) {
-            long diffSeconds = Duration.between(nowUtc, order.getPickupExpiry()).getSeconds();
+            LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
+            Instant nowInstant = Instant.now();
+            Instant expiryInstant = order.getPickupExpiry()
+                    .plusSeconds(10)
+                    .atOffset(ZoneOffset.UTC)
+                    .toInstant();
+            long diffSeconds = Duration.between(nowInstant, expiryInstant).getSeconds();
 
-            log.warn("QR expiry check -> orderId={}, nowUtc={}, expiryUtc={}, diffSeconds={}, status={}, qrUsed={}",
+            log.warn("QR expiry check -> orderId={}, nowUtc={}, nowInstant={}, expiryUtc={}, expiryInstant={}, serverZone={}, diffSeconds={}, status={}, qrUsed={}",
                     order.getId(),
                     nowUtc,
+                    nowInstant,
                     order.getPickupExpiry(),
+                    expiryInstant,
+                    ZoneId.systemDefault(),
                     diffSeconds,
                     order.getStatus(),
                     order.getQrUsed());
 
-            if (nowUtc.isAfter(order.getPickupExpiry().plusSeconds(10))) {
+            if (nowInstant.isAfter(expiryInstant)) {
 
                 throw new ResponseStatusException(
                         HttpStatus.GONE,
