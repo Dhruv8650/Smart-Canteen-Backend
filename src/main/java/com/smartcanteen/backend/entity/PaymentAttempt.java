@@ -27,8 +27,11 @@ public class PaymentAttempt {
     @Column(nullable = false)
     private BigDecimal amount;
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true)
     private String gatewayOrderId;
+
+    @Column(unique = true)
+    private String receipt;
 
     @Column(unique = true)
     private String gatewayPaymentId;

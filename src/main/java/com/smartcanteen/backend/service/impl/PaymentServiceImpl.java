@@ -17,6 +17,7 @@ import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.repository.PaymentAttemptRepository;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.OrderService;
+import com.smartcanteen.backend.service.PaymentAttemptService;
 import com.smartcanteen.backend.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +40,6 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -52,6 +52,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final OrderService orderService;
+    private final PaymentAttemptService paymentAttemptService;
     private final ObjectMapper objectMapper;
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -69,6 +70,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public Map<String, Object> createPaymentOrder(OrderRequestDTO request, String userEmail) {
 
+        // Validate Razorpay config
         if (razorpayKeyId == null || razorpayKeyId.isBlank()) {
             throw new IllegalStateException("Razorpay key id not configured");
         }
@@ -77,31 +79,53 @@ public class PaymentServiceImpl implements PaymentService {
             throw new IllegalStateException("Razorpay key secret not configured");
         }
 
+        //  Validate payment method
         if (request.getPaymentMethod() == null || request.getPaymentMethod() == PaymentMethod.CASH) {
             throw new IllegalArgumentException("Online payment requires UPI or CARD");
         }
 
+        // Fetch user
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
+        // Calculate amount
         BigDecimal amount = orderService.calculateOrderAmount(request, userEmail);
         long amountInPaise = toPaise(amount);
 
-        RazorpayOrderResponse gatewayOrder = createRazorpayOrder(
-                amountInPaise,
-                "order_" + UUID.randomUUID()
-        );
-
+        //  Create PaymentAttempt FIRST
         PaymentAttempt attempt = new PaymentAttempt();
         attempt.setUser(user);
         attempt.setRequestJson(writeRequestJson(request));
         attempt.setAmount(amount);
-        attempt.setGatewayOrderId(gatewayOrder.id());
         attempt.setStatus(PaymentStatus.INITIATED);
         attempt.setExpiresAt(LocalDateTime.now().plusMinutes(15));
 
-        PaymentAttempt savedAttempt = paymentAttemptRepository.save(attempt);
+        // Save to generate ID
+        attempt = paymentAttemptService.saveAttempt(attempt);
 
+        //  Generate receipt using ID (traceable + safe)
+        String receipt = "PA_" + attempt.getId();
+        attempt.setReceipt(receipt);
+
+        //  Create Razorpay order (ONLY ONCE)
+        RazorpayOrderResponse gatewayOrder;
+        try {
+            gatewayOrder = createRazorpayOrder(
+                    amountInPaise,
+                    receipt
+            );
+        } catch (Exception ex) {
+            attempt.setStatus(PaymentStatus.FAILED);
+            paymentAttemptService.saveAttempt(attempt);
+            throw ex;
+        }
+
+        // Save gateway order ID
+        attempt.setGatewayOrderId(gatewayOrder.id());
+
+        PaymentAttempt savedAttempt = paymentAttemptService.saveAttempt(attempt);
+
+        // Return response to frontend
         return Map.of(
                 "keyId", razorpayKeyId,
                 "amount", gatewayOrder.amount(),
