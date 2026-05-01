@@ -19,6 +19,7 @@ import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.service.OrderService;
 import com.smartcanteen.backend.service.PaymentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
@@ -66,6 +68,15 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public Map<String, Object> createPaymentOrder(OrderRequestDTO request, String userEmail) {
+
+        if (razorpayKeyId == null || razorpayKeyId.isBlank()) {
+            throw new IllegalStateException("Razorpay key id not configured");
+        }
+
+        if (razorpayKeySecret == null || razorpayKeySecret.isBlank()) {
+            throw new IllegalStateException("Razorpay key secret not configured");
+        }
+
         if (request.getPaymentMethod() == null || request.getPaymentMethod() == PaymentMethod.CASH) {
             throw new IllegalArgumentException("Online payment requires UPI or CARD");
         }
@@ -196,6 +207,9 @@ public class PaymentServiceImpl implements PaymentService {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.error("Razorpay order creation failed. status={}, body={}",
+                        response.statusCode(),
+                        response.body());
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to create payment order");
             }
 
@@ -209,6 +223,7 @@ public class PaymentServiceImpl implements PaymentService {
         } catch (ResponseStatusException ex) {
             throw ex;
         } catch (Exception ex) {
+            log.error("Razorpay order creation failed", ex);
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Unable to create payment order");
         }
     }
