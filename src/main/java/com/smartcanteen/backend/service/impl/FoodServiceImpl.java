@@ -166,11 +166,13 @@ public class FoodServiceImpl implements FoodService {
 
     @Override
     public Double getAverageRating(Long foodItemId) {
-        return Optional.ofNullable(ratingRepository.getAverageRating(foodItemId))
-                .orElse(0.0);
+        return ratingRepository.getAverageRating(foodItemId);
     }
 
     private FoodItemResponseDTO mapToDTO(FoodItem food) {
+
+        Double averageRating = ratingRepository.getAverageRating(food.getId());
+        long ratingCount = ratingRepository.countByFoodItemId(food.getId());
 
         return new FoodItemResponseDTO(
                 food.getId(),
@@ -180,7 +182,9 @@ public class FoodServiceImpl implements FoodService {
                 food.isAvailable(),
                 food.getImageUrl(),
                 food.getIsPreparedItem(),
-                food.getMaxPerOrder()
+                food.getMaxPerOrder(),
+                averageRating,
+                ratingCount
         );
     }
 }

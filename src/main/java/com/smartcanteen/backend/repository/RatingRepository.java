@@ -20,5 +20,8 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
     """)
     Double getAverageRating(Long foodItemId);
 
+    long countByFoodItemId(Long foodItemId);
+
+
 
 }

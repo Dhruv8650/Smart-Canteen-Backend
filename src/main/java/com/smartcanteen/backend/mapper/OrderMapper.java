@@ -41,7 +41,10 @@ public class OrderMapper {
                             food.isAvailable(),
                             food.getImageUrl(),
                             food.getIsPreparedItem(),
-                            food.getMaxPerOrder()
+                            food.getMaxPerOrder(),
+                            null,
+                            0L
+
                     );
                 })
                 .collect(Collectors.toList());

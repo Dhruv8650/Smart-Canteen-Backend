@@ -17,4 +17,6 @@ public class FoodItemResponseDTO{
     String imageUrl;
     Boolean isPreparedItem;
     Integer maxPerOrder;
+    Double averageRating;
+    long ratingCount;
 }
