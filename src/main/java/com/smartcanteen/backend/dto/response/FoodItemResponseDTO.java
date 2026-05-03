@@ -1,6 +1,7 @@
 package com.smartcanteen.backend.dto.response;
 
 import com.smartcanteen.backend.entity.FoodCategory;
+import com.smartcanteen.backend.entity.ItemType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -15,8 +16,10 @@ public class FoodItemResponseDTO{
     BigDecimal price;
     boolean available;
     String imageUrl;
-    Boolean isPreparedItem;
     Integer maxPerOrder;
     Double averageRating;
     long ratingCount;
+    ItemType itemType;
+    int prepTimeMinutes;
+    Boolean isPreparedItem;
 }

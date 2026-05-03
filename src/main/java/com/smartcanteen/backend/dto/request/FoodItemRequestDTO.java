@@ -1,6 +1,7 @@
 package com.smartcanteen.backend.dto.request;
 
 import com.smartcanteen.backend.entity.FoodCategory;
+import com.smartcanteen.backend.entity.ItemType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -15,4 +16,7 @@ public class FoodItemRequestDTO{
     String imageUrl;
     private Boolean isPreparedItem;
     private Integer maxPerOrder;
+    private ItemType itemType;
+    private Integer prepTimeMinutes;
+
 }

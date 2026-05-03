@@ -4,6 +4,7 @@ import com.smartcanteen.backend.dto.request.FoodItemRequestDTO;
 import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.entity.FoodCategory;
 import com.smartcanteen.backend.entity.FoodItem;
+import com.smartcanteen.backend.entity.ItemType;
 import com.smartcanteen.backend.exception.FoodNotFoundException;
 import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.RatingRepository;
@@ -29,6 +30,7 @@ public class FoodServiceImpl implements FoodService {
     public FoodItemResponseDTO createFood(FoodItemRequestDTO request) {
 
         log.info("Creating new food item: {}", request.getName());
+        ItemType itemType = resolveItemType(request.getItemType(), request.getIsPreparedItem());
 
         FoodItem food = new FoodItem();
         food.setName(request.getName());
@@ -36,6 +38,9 @@ public class FoodServiceImpl implements FoodService {
         food.setPrice(request.getPrice());
         food.setImageUrl(request.getImageUrl());
         food.setIsPreparedItem(request.getIsPreparedItem());
+        food.setMaxPerOrder(request.getMaxPerOrder());
+        food.setItemType(itemType);
+        food.setPrepTimeMinutes(resolvePrepTime(request.getPrepTimeMinutes()));
         food.setMaxPerOrder(request.getMaxPerOrder());
 
         FoodItem saved = foodItemRepository.save(food);
@@ -51,6 +56,8 @@ public class FoodServiceImpl implements FoodService {
 
         log.info("Updating food item with ID: {}", id);
 
+        ItemType itemType = resolveItemType(request.getItemType(), request.getIsPreparedItem());
+
         FoodItem food = foodItemRepository.findById(id)
                 .orElseThrow(() -> {
                     log.error("Food not found with ID: {}", id);
@@ -61,6 +68,9 @@ public class FoodServiceImpl implements FoodService {
         food.setCategory(request.getFoodCategory());
         food.setPrice(request.getPrice());
         food.setIsPreparedItem(request.getIsPreparedItem());
+        food.setMaxPerOrder(request.getMaxPerOrder());
+        food.setItemType(itemType);
+        food.setPrepTimeMinutes(resolvePrepTime(request.getPrepTimeMinutes()));
         food.setMaxPerOrder(request.getMaxPerOrder());
         //update image only if provided
         if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
@@ -181,10 +191,36 @@ public class FoodServiceImpl implements FoodService {
                 food.getPrice(),
                 food.isAvailable(),
                 food.getImageUrl(),
-                food.getIsPreparedItem(),
                 food.getMaxPerOrder(),
                 averageRating,
-                ratingCount
-        );
+                ratingCount,
+                food.getItemType(),
+                food.getPrepTimeMinutes(),
+                food.getIsPreparedItem()
+
+                );
     }
+
+    private ItemType resolveItemType(ItemType itemType, Boolean isPreparedItem) {
+        if (itemType != null) {
+            return itemType;
+        }
+
+        return Boolean.TRUE.equals(isPreparedItem)
+                ? ItemType.COOKED
+                : ItemType.READY_MADE;
+    }
+
+    private int resolvePrepTime(Integer prepTimeMinutes) {
+        if (prepTimeMinutes == null) {
+            return 0;
+        }
+
+        if (prepTimeMinutes < 0) {
+            throw new IllegalArgumentException("prepTimeMinutes cannot be negative");
+        }
+
+        return prepTimeMinutes;
+    }
+
 }

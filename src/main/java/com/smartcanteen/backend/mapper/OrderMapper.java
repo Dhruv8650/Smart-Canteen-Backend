@@ -40,11 +40,12 @@ public class OrderMapper {
                             food.getPrice(),
                             food.isAvailable(),
                             food.getImageUrl(),
-                            food.getIsPreparedItem(),
                             food.getMaxPerOrder(),
-                            null,
-                            0L
-
+                            null, // averageRating
+                            0L,   // ratingCount
+                            food.getItemType(),
+                            food.getPrepTimeMinutes(),
+                            food.getIsPreparedItem()
                     );
                 })
                 .collect(Collectors.toList());

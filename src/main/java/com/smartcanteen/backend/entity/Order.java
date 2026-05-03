@@ -75,6 +75,13 @@ public class Order {
     @Column(name = "source")
     private OrderSource source = OrderSource.USER;
 
+    @Column(nullable = false)
+    private boolean hasCookedItems;
+
+    @Column(nullable = false)
+    private boolean hasReadyMadeItems;
+
+
 
     public Order() {}
 
@@ -153,5 +160,14 @@ public class Order {
     public void setSource(OrderSource source) {
         this.source = source;
     }
+
+    public void setHasCookedItems(boolean hasCookedItems) {
+        this.hasCookedItems = hasCookedItems;
+    }
+
+    public void setHasReadyMadeItems(boolean hasReadyMadeItems) {
+        this.hasReadyMadeItems = hasReadyMadeItems;
+    }
+
 
 }

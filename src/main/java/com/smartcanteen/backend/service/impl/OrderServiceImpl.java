@@ -59,7 +59,9 @@ public class OrderServiceImpl implements OrderService {
     private record OrderDraft(User user,
                               List<ValidatedOrderLine> lines,
                               OrderType orderType,
-                              BigDecimal totalAmount) {}
+                              BigDecimal totalAmount,
+                              boolean hasCookedItems,
+                              boolean hasReadyMadeItems) {}
 
 
     @Override
@@ -258,14 +260,25 @@ public class OrderServiceImpl implements OrderService {
                 .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
 
         // DETECT PREPARATION REQUIREMENT
-        boolean requiresPreparation = lines.stream()
-                .anyMatch(item ->
-                        Boolean.TRUE.equals(item.foodItem().getIsPreparedItem())
-                );
+        boolean hasCookedItems = false;
+        boolean hasReadyMadeItems = false;
 
-        OrderType orderType = requiresPreparation
+        for (ValidatedOrderLine line : lines) {
+            ItemType itemType = line.foodItem().getItemType();
+
+            if (itemType == ItemType.COOKED) {
+                hasCookedItems = true;
+            }
+
+            if (itemType == ItemType.READY_MADE) {
+                hasReadyMadeItems = true;
+            }
+        }
+
+        OrderType orderType = hasCookedItems
                 ? OrderType.PREPARED
                 : OrderType.READYMADE;
+
 
         log.info("Order type: {}", orderType);
 
@@ -277,7 +290,15 @@ public class OrderServiceImpl implements OrderService {
                         .multiply(BigDecimal.valueOf(item.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return new OrderDraft(user, lines, orderType, total);
+        return new OrderDraft(
+                user,
+                lines,
+                orderType,
+                total,
+                hasCookedItems,
+                hasReadyMadeItems
+        );
+
     }
 
     private OrderResponseDTO persistOrder(OrderRequestDTO request,
@@ -287,22 +308,41 @@ public class OrderServiceImpl implements OrderService {
                                           String paymentId,
                                           String paymentSignature,
                                           PaymentStatus paymentStatusOverride) {
+
         Order order = new Order();
         order.setUser(draft.user());
         order.setPaymentMethod(request.getPaymentMethod());
         order.setSource(source);
         order.setOrderType(draft.orderType());
+        order.setHasCookedItems(draft.hasCookedItems());
+        order.setHasReadyMadeItems(draft.hasReadyMadeItems());
         order.setTotalAmount(draft.totalAmount());
         order.setPaymentOrderId(paymentOrderId);
         order.setPaymentId(paymentId);
         order.setPaymentSignature(paymentSignature);
-        order.setPaymentStatus(resolvePaymentStatus(request.getPaymentMethod(), source, paymentStatusOverride));
+        order.setPaymentStatus(
+                resolvePaymentStatus(request.getPaymentMethod(), source, paymentStatusOverride)
+        );
 
+        // ORDER ITEMS + MAX PER ORDER VALIDATION
         List<OrderItem> orderItems = draft.lines().stream()
                 .map(line -> {
+
+                    FoodItem food = line.foodItem();
+                    int quantity = line.quantity();
+
+                    // VALIDATION (only for COOKED items)
+                    if (food.getItemType() == ItemType.COOKED) {
+                        if (food.getMaxPerOrder() != null && quantity > food.getMaxPerOrder()) {
+                            throw new MaxOrderLimitExceededException(
+                                    "You can only order " + food.getMaxPerOrder() + " " + food.getName()
+                            );
+                        }
+                    }
+
                     OrderItem orderItem = new OrderItem();
-                    orderItem.setFoodItem(line.foodItem());
-                    orderItem.setQuantity(line.quantity());
+                    orderItem.setFoodItem(food);
+                    orderItem.setQuantity(quantity);
                     orderItem.setOrder(order);
                     return orderItem;
                 })
@@ -334,11 +374,9 @@ public class OrderServiceImpl implements OrderService {
                     order.setStatus(OrderStatus.READY);
                     order.setReadyAt(nowUtc);
                     order.setPickupExpiry(nowUtc.plusMinutes(45));
-
                 }
 
             } else {
-
 
                 if (request.getPaymentMethod() == PaymentMethod.CASH) {
                     order.setStatus(OrderStatus.PAYMENT_PENDING);
@@ -351,7 +389,7 @@ public class OrderServiceImpl implements OrderService {
         //  SAVE ORDER
         Order saved = orderRepository.save(order);
 
-        //  FETCH WITH RELATIONS (SAFE)
+        // FETCH WITH RELATIONS
         saved = orderRepository.findByIdWithItems(saved.getId())
                 .orElseThrow(() -> new RuntimeException("Order not found after save"));
 
@@ -364,20 +402,18 @@ public class OrderServiceImpl implements OrderService {
         saved.setPickupCode(finalCode);
         saved = orderRepository.save(saved);
 
-        //  CLEAR CART ONLY FOR USER ORDERS
+        //  CLEAR CART (only USER orders)
         if (saved.getSource() == null || saved.getSource() == OrderSource.USER) {
             cartService.clearCart(draft.user());
             log.info("Cart cleared for user: {}", draft.user().getEmail());
         }
 
-
-
         log.info("Order saved with ID: {} and status: {}", saved.getId(), saved.getStatus());
 
-        // MAP RESPONSE
+        //  MAP RESPONSE
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
-        //  EVENT (WebSocket)
+        // EVENT (WebSocket)
         eventPublisher.publishEvent(new OrderCreatedEvent(response));
 
         return response;
