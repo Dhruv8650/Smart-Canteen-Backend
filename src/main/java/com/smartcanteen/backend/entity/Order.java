@@ -82,7 +82,6 @@ public class Order {
     private boolean hasReadyMadeItems;
 
 
-
     public Order() {}
 
     @PrePersist
@@ -167,6 +166,14 @@ public class Order {
 
     public void setHasReadyMadeItems(boolean hasReadyMadeItems) {
         this.hasReadyMadeItems = hasReadyMadeItems;
+    }
+
+    public boolean hasCookedItems() {
+        return hasCookedItems;
+    }
+
+    public boolean hasReadyMadeItems() {
+        return hasReadyMadeItems;
     }
 
 

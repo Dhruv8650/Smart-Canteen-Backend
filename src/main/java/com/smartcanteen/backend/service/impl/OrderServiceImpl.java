@@ -19,6 +19,7 @@ import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.CanteenService;
 import com.smartcanteen.backend.service.CartService;
 import com.smartcanteen.backend.service.OrderService;
+import com.smartcanteen.backend.service.RoutingService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -53,6 +54,8 @@ public class OrderServiceImpl implements OrderService {
     private final CanteenService canteenService;
     private final QrSecurityUtil qrSecurityUtil;
     private final CartService cartService;
+    private final RoutingService routingService;
+
 
     private record ValidatedOrderLine(FoodItem foodItem, int quantity) {}
 
@@ -66,33 +69,29 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponseDTO approvePayment(Long orderId){
+    public OrderResponseDTO approvePayment(Long orderId) {
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
 
-        if(order.getStatus() != OrderStatus.PAYMENT_PENDING){
+        if (order.getStatus() != OrderStatus.PAYMENT_PENDING) {
             throw new IllegalStateException("Order is not waiting for payment");
         }
 
-        if(order.getPaymentMethod() != PaymentMethod.CASH){
+        if (order.getPaymentMethod() != PaymentMethod.CASH) {
             throw new IllegalStateException("Only cash orders can be approved");
         }
+
         // Null Safety
         if (order.getOrderType() == null) {
             log.warn("OrderType is null for orderId: {}. Defaulting to PREPARED", orderId);
             order.setOrderType(OrderType.PREPARED);
         }
 
-        if (OrderType.READYMADE.equals(order.getOrderType()))  {
-            LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
-            order.setStatus(OrderStatus.READY);
-            order.setReadyAt(nowUtc);
-            order.setPickupExpiry(nowUtc.plusMinutes(45));
-        } else {
-            order.setStatus(OrderStatus.PENDING);
-        }
+        //routing service
+        routingService.applyRouting(order);
 
+        // Payment success
         order.setPaymentStatus(PaymentStatus.SUCCESS);
 
         Order updated = orderRepository.save(order);
@@ -244,7 +243,8 @@ public class OrderServiceImpl implements OrderService {
                     }
 
                     // Max limit only for prepared items
-                    if (enforceRealtimeChecks && Boolean.TRUE.equals(food.getIsPreparedItem())) {
+                    if (enforceRealtimeChecks && food.getItemType() == ItemType.COOKED) {
+
 
                         if (food.getMaxPerOrder() != null &&
                                 quantity > food.getMaxPerOrder()) {
@@ -350,40 +350,16 @@ public class OrderServiceImpl implements OrderService {
 
         order.setOrderItems(orderItems);
 
-        boolean isPosOrder = source == OrderSource.POS;
+        // ROUTING LOGIC
+        boolean requiresPaymentApproval =
+                source == OrderSource.USER &&
+                        request.getPaymentMethod() == PaymentMethod.CASH &&
+                        paymentStatusOverride != PaymentStatus.SUCCESS;
 
-        if (isPosOrder) {
-
-            if (draft.orderType() == OrderType.READYMADE) {
-                LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
-                order.setStatus(OrderStatus.READY);
-                order.setReadyAt(nowUtc);
-                order.setPickupExpiry(nowUtc.plusMinutes(45));
-            } else {
-                order.setStatus(OrderStatus.PENDING);
-            }
-
+        if (requiresPaymentApproval) {
+            order.setStatus(OrderStatus.PAYMENT_PENDING);
         } else {
-
-            if (draft.orderType() == OrderType.READYMADE) {
-
-                if (request.getPaymentMethod() == PaymentMethod.CASH) {
-                    order.setStatus(OrderStatus.PAYMENT_PENDING);
-                } else {
-                    LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
-                    order.setStatus(OrderStatus.READY);
-                    order.setReadyAt(nowUtc);
-                    order.setPickupExpiry(nowUtc.plusMinutes(45));
-                }
-
-            } else {
-
-                if (request.getPaymentMethod() == PaymentMethod.CASH) {
-                    order.setStatus(OrderStatus.PAYMENT_PENDING);
-                } else {
-                    order.setStatus(OrderStatus.PENDING);
-                }
-            }
+            routingService.applyRouting(order);
         }
 
         //  SAVE ORDER
