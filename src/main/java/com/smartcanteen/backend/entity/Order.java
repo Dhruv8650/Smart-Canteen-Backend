@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 
@@ -81,6 +82,13 @@ public class Order {
     @Column(nullable = false)
     private boolean hasReadyMadeItems;
 
+    @Column(nullable = false)
+    private Integer totalPrepTime = 0;
+
+    @Transient
+    private Double priorityScore;
+
+
 
     public Order() {}
 
@@ -89,8 +97,11 @@ public class Order {
         if (this.source == null) {
             this.source = OrderSource.USER;
         }
+        if (this.totalPrepTime == null) {
+            this.totalPrepTime = 0;
+        }
 
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     // Setters
@@ -159,6 +170,24 @@ public class Order {
     public void setSource(OrderSource source) {
         this.source = source;
     }
+
+    public void setTotalPrepTime(Integer totalPrepTime) {
+        if (totalPrepTime == null) {
+            this.totalPrepTime = 0;
+            return;
+        }
+
+        if (totalPrepTime < 0) {
+            throw new IllegalArgumentException("totalPrepTime cannot be negative");
+        }
+
+        this.totalPrepTime = totalPrepTime;
+    }
+
+    public void setPriorityScore(Double priorityScore) {
+        this.priorityScore = priorityScore;
+    }
+
 
     public void setHasCookedItems(boolean hasCookedItems) {
         this.hasCookedItems = hasCookedItems;

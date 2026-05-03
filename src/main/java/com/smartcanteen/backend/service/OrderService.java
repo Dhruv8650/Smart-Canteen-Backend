@@ -28,6 +28,8 @@ public interface OrderService {
 
     List<OrderResponseDTO> getAllOrders();
 
+    List<OrderResponseDTO> getKitchenOrdersSortedByPriority();
+
     OrderResponseDTO updateOrderStatus(Long orderId, OrderStatus newStatus);
 
     void reorder(Long orderId);

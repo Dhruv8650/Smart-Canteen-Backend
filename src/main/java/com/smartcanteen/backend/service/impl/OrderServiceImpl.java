@@ -16,10 +16,7 @@ import com.smartcanteen.backend.repository.OrderRepository;
 import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.security.QrSecurityUtil;
 import com.smartcanteen.backend.security.SecurityUtils;
-import com.smartcanteen.backend.service.CanteenService;
-import com.smartcanteen.backend.service.CartService;
-import com.smartcanteen.backend.service.OrderService;
-import com.smartcanteen.backend.service.RoutingService;
+import com.smartcanteen.backend.service.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,12 +31,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -55,6 +49,8 @@ public class OrderServiceImpl implements OrderService {
     private final QrSecurityUtil qrSecurityUtil;
     private final CartService cartService;
     private final RoutingService routingService;
+    private final PriorityService priorityService;
+
 
 
     private record ValidatedOrderLine(FoodItem foodItem, int quantity) {}
@@ -64,7 +60,9 @@ public class OrderServiceImpl implements OrderService {
                               OrderType orderType,
                               BigDecimal totalAmount,
                               boolean hasCookedItems,
-                              boolean hasReadyMadeItems) {}
+                              boolean hasReadyMadeItems,
+                              int totalPrepTime) {}
+
 
 
     @Override
@@ -275,6 +273,11 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
+        int totalPrepTime = lines.stream()
+                .mapToInt(line -> line.foodItem().getPrepTimeMinutes() * line.quantity())
+                .sum();
+
+
         OrderType orderType = hasCookedItems
                 ? OrderType.PREPARED
                 : OrderType.READYMADE;
@@ -296,7 +299,8 @@ public class OrderServiceImpl implements OrderService {
                 orderType,
                 total,
                 hasCookedItems,
-                hasReadyMadeItems
+                hasReadyMadeItems,
+                totalPrepTime
         );
 
     }
@@ -316,6 +320,7 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderType(draft.orderType());
         order.setHasCookedItems(draft.hasCookedItems());
         order.setHasReadyMadeItems(draft.hasReadyMadeItems());
+        order.setTotalPrepTime(draft.totalPrepTime());
         order.setTotalAmount(draft.totalAmount());
         order.setPaymentOrderId(paymentOrderId);
         order.setPaymentId(paymentId);
@@ -489,6 +494,26 @@ public class OrderServiceImpl implements OrderService {
 
         return orders;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponseDTO> getKitchenOrdersSortedByPriority() {
+
+        List<Order> pendingOrders =
+                orderRepository.findByStatusesWithDetails(List.of(
+                        OrderStatus.PENDING,
+                        OrderStatus.PREPARING
+                ));
+
+        return pendingOrders.stream()
+                .peek(order -> order.setPriorityScore(priorityService.calculatePriority(order)))
+                .sorted(Comparator.comparingDouble(
+                        (Order order) -> order.getPriorityScore()
+                ).reversed())
+                .map(OrderMapper::toDTO)
+                .toList();
+    }
+
 
     @Override
     public OrderResponseDTO getOrderById(Long orderId) {

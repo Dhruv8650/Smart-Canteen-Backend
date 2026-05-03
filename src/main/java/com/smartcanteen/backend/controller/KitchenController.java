@@ -26,10 +26,8 @@ public class KitchenController {
     public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getKitchenOrders() {
 
         List<OrderResponseDTO> orders =
-                orderService.getOrdersByStatuses(List.of(
-                        OrderStatus.PENDING,
-                        OrderStatus.PREPARING
-                ));
+                orderService.getKitchenOrdersSortedByPriority();
+
 
         return ResponseEntity.ok(
                 ApiResponse.<List<OrderResponseDTO>>builder()
