@@ -107,7 +107,13 @@ public class OrderMapper {
 
                 // QR
                 pickupCode,
-                showQr
+                showQr,
+
+
+                // QUEUE / ETA FIELDS - filled dynamically for kitchen queue
+                order.getPriorityScore(),
+                null,
+                null
         );
     }
 

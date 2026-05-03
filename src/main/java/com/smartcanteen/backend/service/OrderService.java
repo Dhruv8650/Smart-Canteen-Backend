@@ -45,4 +45,7 @@ public interface OrderService {
     boolean hasActiveOrders();
 
     OrderResponseDTO verifyAndReturn(String pickupCode);
+
+    List<OrderResponseDTO> buildKitchenQueueWithETA();
+
 }

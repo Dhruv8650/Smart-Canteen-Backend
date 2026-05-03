@@ -37,5 +37,8 @@ public class OrderResponseDTO {
     private String timeStatus; // WARNING / DELAYED / ON_TIME
     private String pickupCode;
     private boolean showQr;
+    private Double priorityScore;
+    private LocalDateTime estimatedReadyAt;
+    private Integer queuePosition;
 
 }

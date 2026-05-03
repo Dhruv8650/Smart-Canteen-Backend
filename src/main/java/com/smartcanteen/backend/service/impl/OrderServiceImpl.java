@@ -498,21 +498,68 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> getKitchenOrdersSortedByPriority() {
+        return buildKitchenQueueWithETA();
+    }
 
-        List<Order> pendingOrders =
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderResponseDTO> buildKitchenQueueWithETA() {
+
+        List<Order> kitchenOrders =
                 orderRepository.findByStatusesWithDetails(List.of(
                         OrderStatus.PENDING,
                         OrderStatus.PREPARING
                 ));
 
-        return pendingOrders.stream()
-                .peek(order -> order.setPriorityScore(priorityService.calculatePriority(order)))
-                .sorted(Comparator.comparingDouble(
-                        (Order order) -> order.getPriorityScore()
-                ).reversed())
-                .map(OrderMapper::toDTO)
+        if (kitchenOrders.isEmpty()) {
+            return List.of();
+        }
+
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
+
+        List<Order> sortedOrders = kitchenOrders.stream()
+                .peek(order -> {
+                    double basePriority = priorityService.calculatePriority(order);
+
+                    // PREPARING BOOST
+                    if (order.getStatus() == OrderStatus.PREPARING) {
+                        basePriority += 0.5; // small boost
+                    }
+
+                    order.setPriorityScore(basePriority);
+                })
+                .sorted(
+                        Comparator.comparingDouble((Order order) -> order.getPriorityScore())
+                                .reversed()
+                                .thenComparing(Order::getCreatedAt) // optional stability
+                )
                 .toList();
+
+        List<OrderResponseDTO> response = new ArrayList<>();
+
+        int cumulativePrepMinutes = 0;
+        int position = 1;
+
+        for (Order order : sortedOrders) {
+            OrderResponseDTO dto = OrderMapper.toDTO(order);
+
+            dto.setPriorityScore(order.getPriorityScore());
+            dto.setQueuePosition(position);
+
+            response.add(dto);
+
+            int prepTime = order.getTotalPrepTime() == null || order.getTotalPrepTime() <= 0
+                    ? 1
+                    : order.getTotalPrepTime();
+
+            cumulativePrepMinutes += prepTime;
+            dto.setEstimatedReadyAt(nowUtc.plusMinutes(cumulativePrepMinutes));
+            position++;
+        }
+
+        return response;
     }
+
 
 
     @Override
