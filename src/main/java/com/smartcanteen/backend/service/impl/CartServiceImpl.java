@@ -92,19 +92,17 @@ public class CartServiceImpl implements CartService {
     public CartResponseDTO getCart(User user) {
 
         Cart cart = cartRepository.findByUserWithItems(user)
-                .orElseGet(() -> createNewCart(user));
+                .orElse(null);
 
-        List<CartItem> cartItems = cart.getCartItems() != null
-                ? cart.getCartItems()
-                : List.of(); // null-safe
+        if (cart == null || cart.getCartItems() == null || cart.getCartItems().isEmpty()) {
+            return new CartResponseDTO(List.of(), BigDecimal.ZERO);
+        }
 
-        List<CartItemResponseDTO> items = cartItems.stream()
-                .filter(ci -> ci.getFoodItem() != null) // safety
+        List<CartItemResponseDTO> items = cart.getCartItems().stream()
+                .filter(ci -> ci.getFoodItem() != null)
                 .map(cartItem -> {
-
                     BigDecimal price = cartItem.getFoodItem().getPrice();
                     int quantity = cartItem.getQuantity();
-
                     BigDecimal subtotal = price.multiply(BigDecimal.valueOf(quantity));
 
                     return new CartItemResponseDTO(
@@ -125,6 +123,7 @@ public class CartServiceImpl implements CartService {
         return new CartResponseDTO(items, total);
     }
 
+
     //  REMOVE ITEM
     @Override
     @Transactional
@@ -136,12 +135,16 @@ public class CartServiceImpl implements CartService {
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new CartItemNotFoundException("Cart item not found"));
 
-        if (!cartItem.getCart().getId().equals(cart.getId())) {
+        if (cartItem.getCart() == null || !cartItem.getCart().getId().equals(cart.getId())) {
             throw new RuntimeException("Unauthorized action");
         }
 
-        cartItemRepository.delete(cartItem);
+        cart.removeItem(cartItem);
+        cartRepository.saveAndFlush(cart);
+
+        log.info("Cart item removed. cartItemId={}, user={}", cartItemId, user.getEmail());
     }
+
 
     //  UPDATE QUANTITY
     @Override
@@ -185,16 +188,23 @@ public class CartServiceImpl implements CartService {
     public void clearCart(User user) {
 
         Cart cart = cartRepository.findByUserWithItems(user)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElse(null);
 
-        if (cart.getCartItems() != null) {
-            cart.getCartItems().clear();
+        if (cart == null || cart.getCartItems() == null || cart.getCartItems().isEmpty()) {
+            log.info("Cart already empty for user: {}", user.getEmail());
+            return;
         }
 
-        cartRepository.save(cart);
+        int removedCount = cart.getCartItems().size();
 
-        log.info("🧹 Cart cleared for user: {}", user.getEmail());
+        new ArrayList<>(cart.getCartItems())
+                .forEach(cart::removeItem);
+
+        cartRepository.saveAndFlush(cart);
+
+        log.info("Cart cleared for user: {}, removedItems={}", user.getEmail(), removedCount);
     }
+
 
     //  HELPER
     private Cart createNewCart(User user) {
