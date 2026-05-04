@@ -61,6 +61,9 @@ public class Order {
     @Column(unique = true)
     private String pickupCode; // QR content
 
+    @Column(unique = true, name = "pickup_code_hash")
+    private String pickupCodeHash;
+
     @Column(nullable = false)
     private Boolean qrUsed = false;
 
@@ -146,6 +149,10 @@ public class Order {
         this.pickupCode = pickupCode;
     }
 
+    public void setPickupCodeHash(String pickupCodeHash) {
+        this.pickupCodeHash = pickupCodeHash;
+    }
+
     public void setReadyAt(LocalDateTime readyAt) {
         this.readyAt = readyAt;
     }
@@ -205,5 +212,7 @@ public class Order {
         return hasReadyMadeItems;
     }
 
-
+    public boolean isQrUsed() {
+        return Boolean.TRUE.equals(qrUsed);
+    }
 }

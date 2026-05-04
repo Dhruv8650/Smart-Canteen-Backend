@@ -163,25 +163,23 @@ public class OrderController {
     }
 
     @GetMapping("/verify")
-    public ResponseEntity<String> verifyOrder(@RequestParam("code") String pickupCode) {
-
-        OrderResponseDTO order = orderService.verifyAndReturn(pickupCode);
+    public ResponseEntity<String> verifyOrderReadOnly() {
 
         return ResponseEntity.ok()
                 .header("Content-Type", "text/html")
                 .body("""
-            <html>
-                <body style="text-align:center;
-                             font-family:sans-serif;
-                             margin-top:50px;">
-                    <h1 style="color:green;"> Order Verified</h1>
-                    <h2>Order #""" + order.getId() + """
-                    </h2>
-                    <p style="font-size:18px;">Successfully collected</p>
-                </body>
-            </html>
-        """);
+        <html>
+            <body style="text-align:center;
+                         font-family:sans-serif;
+                         margin-top:50px;">
+                <h1>QR Verification</h1>
+                <p>This endpoint is read-only.</p>
+                <p>Please use the authorized manager scanner to complete pickup.</p>
+            </body>
+        </html>
+    """);
     }
+
 
     @PostMapping("/verify")
     @PreAuthorize("hasRole('MANAGER')")
@@ -191,7 +189,8 @@ public class OrderController {
 
         String pickupCode = body.get("code");
 
-        OrderResponseDTO order = orderService.verifyAndReturn(pickupCode);
+        OrderResponseDTO order = orderService.verifyPickup(pickupCode);
+
 
         Map<String, Object> data = Map.of(
                 "orderId", order.getId(),

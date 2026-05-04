@@ -4,6 +4,7 @@ import com.smartcanteen.backend.dto.response.analytics.*;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.entity.User;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -166,5 +167,35 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
     WHERE o.id = :id
 """)
     Optional<Order> findByIdWithInvoiceDetails(@Param("id") Long id);
+
+    // Modifying query to atomically mark pickup as completed
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        UPDATE Order o
+        SET o.qrUsed = true,
+            o.qrUsedAt = :usedAt,
+            o.status = :completedStatus
+        WHERE o.id = :orderId
+          AND o.qrUsed = false
+          AND o.status = :readyStatus
+          AND o.pickupExpiry > :now
+    """)
+    int markPickupCompletedAtomically(
+            @Param("orderId") Long orderId,
+            @Param("usedAt") LocalDateTime usedAt,
+            @Param("now") LocalDateTime now,
+            @Param("readyStatus") OrderStatus readyStatus,
+            @Param("completedStatus") OrderStatus completedStatus
+    );
+
+    @Query("""
+        SELECT DISTINCT o FROM Order o
+        JOIN FETCH o.user
+        LEFT JOIN FETCH o.orderItems oi
+        LEFT JOIN FETCH oi.foodItem
+        WHERE o.id = :id
+    """)
+    Optional<Order> findByIdWithDetails(@Param("id") Long id);
+
 
 }

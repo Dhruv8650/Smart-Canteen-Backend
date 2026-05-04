@@ -381,6 +381,7 @@ public class OrderServiceImpl implements OrderService {
         String finalCode = payload + "|" + signature;
 
         saved.setPickupCode(finalCode);
+        saved.setPickupCodeHash(qrSecurityUtil.sha256(finalCode));
         saved = orderRepository.save(saved);
 
         //  CLEAR CART (only USER orders)
@@ -748,18 +749,19 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderResponseDTO verifyAndReturn(String code) {
+    public OrderResponseDTO verifyPickup(String qrToken) {
 
-        log.info("QR verify request received: {}", code);
+        log.info("QR pickup verification request received");
 
-        String[] parts = code.split("\\|");
+        if (qrToken == null || qrToken.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "QR token is required");
+        }
+
+        String[] parts = qrToken.split("\\|");
 
         if (parts.length != 3) {
-            log.warn("Invalid QR format: {}", code);
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Invalid QR format"
-            );
+            log.warn("Invalid QR format");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid QR format");
         }
 
         String baseCode = parts[0];
@@ -771,114 +773,81 @@ public class OrderServiceImpl implements OrderService {
         try {
             orderId = Long.parseLong(orderIdStr);
         } catch (Exception e) {
-            log.warn("Invalid orderId in QR: {}", orderIdStr);
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Invalid QR data"
-            );
+            log.warn("Invalid orderId in QR");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid QR data");
         }
 
         String payload = baseCode + "|" + orderIdStr;
 
-        //  VERIFY SIGNATURE
         if (!qrSecurityUtil.verify(payload, signature)) {
-            log.warn("QR signature invalid for payload: {}", payload);
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Invalid QR (tampered)"
-            );
+            log.warn("Invalid QR signature for orderId={}", orderId);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid QR token");
         }
 
-        Order order = orderRepository.findByPickupCodeWithDetails(code)
-                .orElseThrow(() -> {
-                    log.warn("QR not found in DB: {}", code);
-                    return new ResponseStatusException(
-                            HttpStatus.NOT_FOUND,
-                            "Invalid QR code"
-                    );
-                });
+        Order order = orderRepository.findByIdWithDetails(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid QR code"));
 
-        if (!order.getId().equals(orderId)) {
-            log.warn("QR mismatch: expected {}, found {}", orderId, order.getId());
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "QR mismatch"
-            );
+        String qrTokenHash = qrSecurityUtil.sha256(qrToken);
+
+        boolean hashMatches = order.getPickupCodeHash() != null &&
+                qrSecurityUtil.constantTimeEquals(order.getPickupCodeHash(), qrTokenHash);
+
+        boolean legacyPlainTextMatches = order.getPickupCodeHash() == null &&
+                qrSecurityUtil.constantTimeEquals(order.getPickupCode(), qrToken);
+
+        if (!hashMatches && !legacyPlainTextMatches) {
+            log.warn("QR token mismatch for orderId={}", orderId);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid QR code");
         }
 
-        //  QR REUSE CHECK
-        if (Boolean.TRUE.equals(order.getQrUsed()) ||
-                order.getStatus() == OrderStatus.COMPLETED) {
+        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
 
-            log.warn("QR already used for order {}", order.getId());
-
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "QR already used"
-            );
+        if (order.isQrUsed() || order.getStatus() == OrderStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "QR already used");
         }
 
-        // STRICT STATE VALIDATION
         if (order.getStatus() != OrderStatus.READY) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order not ready for pickup");
+        }
 
-            log.warn("Invalid state for verification: {}", order.getStatus());
+        if (order.getPickupExpiry() == null || !order.getPickupExpiry().isAfter(nowUtc)) {
+            throw new ResponseStatusException(HttpStatus.GONE, "QR expired");
+        }
 
+        int updatedRows = orderRepository.markPickupCompletedAtomically(
+                order.getId(),
+                nowUtc,
+                nowUtc,
+                OrderStatus.READY,
+                OrderStatus.COMPLETED
+        );
+
+        if (updatedRows == 0) {
+            log.warn("Atomic QR completion failed for orderId={}", order.getId());
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Order not ready for pickup"
+                    "QR already used or order is no longer valid"
             );
         }
 
+        Order saved = orderRepository.findByIdWithDetails(order.getId())
+                .orElseThrow(() -> new OrderNotFoundException("Order not found after QR verification"));
 
-        // EXPIRY CHECK
-        if (order.getPickupExpiry() != null) {
-            LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
-            Instant nowInstant = Instant.now();
-            Instant expiryInstant = order.getPickupExpiry()
-                    .plusSeconds(10)
-                    .atOffset(ZoneOffset.UTC)
-                    .toInstant();
-            long diffSeconds = Duration.between(nowInstant, expiryInstant).getSeconds();
+        log.info("Order {} verified and completed successfully", saved.getId());
 
-            log.warn("QR expiry check -> orderId={}, nowUtc={}, nowInstant={}, expiryUtc={}, expiryInstant={}, serverZone={}, diffSeconds={}, status={}, qrUsed={}",
-                    order.getId(),
-                    nowUtc,
-                    nowInstant,
-                    order.getPickupExpiry(),
-                    expiryInstant,
-                    ZoneId.systemDefault(),
-                    diffSeconds,
-                    order.getStatus(),
-                    order.getQrUsed());
-
-            if (nowInstant.isAfter(expiryInstant)) {
-
-                throw new ResponseStatusException(
-                        HttpStatus.GONE,
-                        "QR expired"
-                );
-            }
-        }
-
-
-        //  COMPLETE ORDER
-        order.setStatus(OrderStatus.COMPLETED);
-        order.setQrUsed(true);
-        order.setQrUsedAt(LocalDateTime.now(ZoneOffset.UTC));
-
-        Order saved = orderRepository.save(order);
-
-        log.info("Order {} verified successfully", saved.getId());
-
-        // 📡 WEBSOCKET EVENT
         OrderResponseDTO response = OrderMapper.toDTO(saved);
 
-        eventPublisher.publishEvent(
-                new OrderStatusUpdatedEvent(response)
-        );
+        eventPublisher.publishEvent(new OrderStatusUpdatedEvent(response));
 
         return response;
     }
+
+    @Override
+    @Transactional
+    public OrderResponseDTO verifyAndReturn(String pickupCode) {
+        return verifyPickup(pickupCode);
+    }
+
 
     private void validateStatusTransition(OrderStatus current,
                                           OrderStatus next) {

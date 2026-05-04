@@ -48,4 +48,7 @@ public interface OrderService {
 
     List<OrderResponseDTO> buildKitchenQueueWithETA();
 
+    OrderResponseDTO verifyPickup(String qrToken);
+
+
 }
