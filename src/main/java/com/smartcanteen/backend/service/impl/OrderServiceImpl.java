@@ -2,6 +2,7 @@ package com.smartcanteen.backend.service.impl;
 
 import com.smartcanteen.backend.dto.request.OrderItemRequestDTO;
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
+import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
 import com.smartcanteen.backend.dto.websocket.OrderCreatedEvent;
 import com.smartcanteen.backend.entity.*;
@@ -512,13 +513,17 @@ public class OrderServiceImpl implements OrderService {
                         OrderStatus.PREPARING
                 ));
 
-        if (kitchenOrders.isEmpty()) {
+        List<Order> kitchenVisibleOrders = kitchenOrders.stream()
+                .filter(this::hasKitchenVisibleItems)
+                .toList();
+
+        if (kitchenVisibleOrders.isEmpty()) {
             return List.of();
         }
 
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
 
-        List<Order> sortedOrders = kitchenOrders.stream()
+        List<Order> sortedOrders = kitchenVisibleOrders.stream()
                 .peek(order -> {
                     double basePriority = priorityService.calculatePriority(order);
 
@@ -543,6 +548,14 @@ public class OrderServiceImpl implements OrderService {
 
         for (Order order : sortedOrders) {
             OrderResponseDTO dto = OrderMapper.toDTO(order);
+            List<FoodItemResponseDTO> kitchenItems = filterKitchenItems(dto.getItems());
+
+            if (kitchenItems.isEmpty()) {
+                continue;
+            }
+
+            dto.setItems(kitchenItems);
+            dto.setTotalItems(kitchenItems.size());
 
             dto.setPriorityScore(order.getPriorityScore());
             dto.setQueuePosition(position);
@@ -559,6 +572,25 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return response;
+    }
+
+    private boolean hasKitchenVisibleItems(Order order) {
+        return order.getOrderItems() != null &&
+                order.getOrderItems().stream()
+                        .anyMatch(orderItem ->
+                                orderItem.getFoodItem() != null &&
+                                        Boolean.TRUE.equals(orderItem.getFoodItem().getIsPreparedItem())
+                        );
+    }
+
+    private List<FoodItemResponseDTO> filterKitchenItems(List<FoodItemResponseDTO> items) {
+        if (items == null) {
+            return List.of();
+        }
+
+        return items.stream()
+                .filter(item -> Boolean.TRUE.equals(item.getIsPreparedItem()))
+                .toList();
     }
 
 
