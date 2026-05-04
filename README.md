@@ -5,235 +5,208 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue)
 ![JWT](https://img.shields.io/badge/Auth-JWT-yellow)
 
-🚀 A production-ready backend system for a **Smart Canteen** that enables real-time order processing, role-based management, and advanced analytics.
+🚀 A real-time smart canteen backend system built as a college project to simulate how modern food-ordering platforms (like Swiggy/Zomato) handle order flow, scheduling, and secure pickup.
 
 ---
 
 ## 🏗️ System Architecture
 
-📌 This diagram illustrates the complete backend architecture including real-time event-driven communication.
+📌 This diagram illustrates the complete backend architecture including real-time event-driven communication.  
 ![Architecture](./assets/architecture.png)
-
 
 ---
 
+## 🎯 Impact
 
-## 🎥 Project Preview
+- Reduces wait time for small orders using priority scheduling  
+- Provides real-time visibility to kitchen and users  
+- Prevents duplicate pickup using secure QR validation  
+- Simulates real-world backend workflows beyond CRUD  
 
-* 🛒 Cart & Checkout Flow
-* ⚡ Real-time Kitchen Dashboard
-* 📊 Analytics Dashboard
+---
 
-> Frontend integration in progress
+## 🧠 Core Concepts
+
+- Smart routing (ready-made vs cooked)
+- Adaptive priority scheduling (SJF + aging inspired)
+- Dynamic ETA calculation
+- Secure QR-based pickup
+- Real-time updates using WebSocket
+
+---
+
+## ⚙️ Intelligent Order Flow
+
+User Places Order
+→ Routing Engine (READY / PENDING)
+→ Priority Queue
+→ ETA Calculation
+→ WebSocket Broadcast
+→ Kitchen Dashboard
+→ Order READY
+→ QR Generated
+→ QR Verification
+→ Order COMPLETED
+
+---
+
+## 🔀 Smart Routing Engine
+
+- READY_MADE items → directly marked READY  
+- COOKED items → sent to kitchen queue (PENDING)  
+
+---
+
+## 📊 Priority Scheduling
+
+priority = (1 / prepTime) + (waitingTime × weight)
+
+- Faster orders complete quickly  
+- Older orders gradually increase priority  
+- Prevents starvation  
+
+---
+
+## ⏱️ ETA Prediction
+
+ETA = current time + cumulative prep time of active queue
+
+- Not stored in DB  
+- Computed dynamically  
+- Reflects real-time workload  
+
+---
+
+## 🔐 Secure QR Pickup
+
+QR Scan
+→ POST /orders/verify
+→ Validate (status, expiry, usage)
+→ Atomic DB Update
+→ Order COMPLETED
+
+- Single-use QR  
+- Expiry validation  
+- Prevents race conditions  
 
 ---
 
 ## 🔥 Key Features
 
-* ⚡ Real-time order updates using WebSockets
-* 🛒 Cart-based checkout system (industry-standard flow)
-* 🔐 JWT Authentication & Role-based access control
-* 📊 Advanced analytics (daily, weekly, monthly revenue)
-* 👨‍🍳 Kitchen dashboard support (live order stream)
-* 🧠 Clean architecture & scalable design
+- JWT-based authentication  
+- Role-based access control  
+- Cart-based checkout system  
+- Smart routing system  
+- Priority-based scheduling  
+- Dynamic ETA calculation  
+- WebSocket real-time updates  
+- Secure QR verification  
+- Analytics endpoints  
 
 ---
 
 ## 🏗️ Tech Stack
 
 | Layer      | Technology                  |
-| ---------- | --------------------------- |
-| Backend    | Spring Boot                 |
-| Language   | Java 17                     |
-| Database   | PostgreSQL                  |
-| Security   | Spring Security + JWT       |
-| ORM        | Spring Data JPA (Hibernate) |
-| Realtime   | WebSocket (STOMP)           |
-| Build Tool | Maven                       |
+|------------|----------------------------|
+| Language   | Java 17                    |
+| Backend    | Spring Boot                |
+| Security   | Spring Security + JWT      |
+| Database   | PostgreSQL                 |
+| ORM        | JPA / Hibernate            |
+| Realtime   | WebSocket (STOMP)          |
+| Build Tool | Maven                      |
 
 ---
 
 ## 📁 Project Structure
 
-```
-src/main/java/com/smartcanteen/backend
-│
-├── config/         # Security, WebSocket, CORS
-├── controller/     # REST APIs
-├── service/        # Business logic
-├── repository/     # Database layer
-├── dto/            # Request/Response models
-├── entity/         # JPA entities
-├── exception/      # Custom exceptions
-└── websocket/      # Real-time events
-```
+controller/
+service/
+repository/
+entity/
+dto/
+websocket/
+security/
 
 ---
 
-## 🔁 Real-World Order Flow
+## 🧪 How to Run
 
-1. User adds items to cart
-2. User clicks checkout
-3. Order is created in backend
-4. Event is published
-5. Kitchen dashboard receives order in real-time
-6. Manager updates status
-7. User sees live updates
-
----
-
-## 🛒 API Overview
-
-### 🔐 Authentication
-
-```
-POST /users/register
-POST /users/login
-```
-
----
-
-### 🛒 Cart
-
-```
-POST /cart/add
-GET /cart
-PUT /cart/item/{id}
-DELETE /cart/item/{id}
-POST /cart/checkout
-```
-
----
-
-### 📦 Orders
-
-```
-GET /orders/my-orders
-GET /orders
-PUT /manager/orders/{id}/status
-```
-
----
-
-### 📊 Analytics
-
-```
-GET /analytics/revenue/daily
-GET /analytics/revenue/weekly
-GET /analytics/revenue/monthly
-GET /analytics/orders/status
-GET /analytics/top-items
-GET /analytics/category-sales
-```
-
----
-
-## ⚡ Real-Time System
-
-> Orders appear instantly on the kitchen screen without refresh.
-
-### Flow:
-
-```
-User Checkout → Order Created → Event Triggered → WebSocket → Manager Screen Updated
-```
-
-### WebSocket:
-
-* Endpoint: `/ws`
-* Topic: `/topic/orders`
-
----
-
-## 📦 Sample API Response
-
-### Place Order
-
-```json
-{
-  "success": true,
-  "message": "Order placed successfully",
-  "data": {
-    "id": 101,
-    "status": "PENDING",
-    "totalAmount": 250
-  }
-}
-```
-
----
-
-## 🔐 Authentication
-
-All protected routes require:
-
-```
-Authorization: Bearer <JWT_TOKEN>
-```
-
----
-
-## 🗄️ Database Design
-
-Core entities:
-
-* Users
-* Cart & CartItems
-* Orders & OrderItems
-* FoodItems
-
----
-
-## 🧪 How to Run Locally
-
-```
+1. Clone the repo   
 git clone https://github.com/your-username/smart-canteen-backend.git
 cd smart-canteen-backend
-mvn spring-boot:run
-```
 
----
-
-## ⚙️ Configuration
-
-Update `application.properties`:
-
-```
-spring.datasource.url=your_db_url
-spring.datasource.username=your_user
+2. Configure database
+spring.datasource.url=jdbc:postgresql://localhost:5432/smart_canteen
+spring.datasource.username=your_username
 spring.datasource.password=your_password
-```
+
+3. Run project
+mvn spring-boot:run
 
 ---
 
-## 💡 Why This Project?
+## 🧪 API Testing (Postman)
 
-This project simulates a real-world canteen system with:
+### Authentication
+- POST /users/register  
+- POST /users/login  
 
-* Cart-based ordering (like Swiggy/Zomato)
-* Real-time kitchen updates
-* Role-based system (User, Manager, Admin)
-* Analytics for business insights
+### Cart
+- POST /cart/add  
+- GET /cart  
+- POST /cart/checkout  
 
-Designed to demonstrate **production-level backend development**.
+### Orders
+- GET /orders  
+- PUT /manager/orders/{id}/status  
+
+### QR Verification
+- POST /orders/verify  
 
 ---
 
-## 🧠 Engineering Decisions
+## 👨‍💻 My Contribution
 
-* Used cart-based checkout instead of direct order API
-* Implemented event-driven architecture for real-time updates
-* Used DTO projection for efficient analytics queries
-* Enforced role-based security using Spring Security
+- Designed full backend architecture  
+- Implemented routing and scheduling logic  
+- Built priority queue behavior  
+- Developed ETA computation system  
+- Integrated WebSocket real-time updates  
+- Implemented secure QR verification with atomic handling  
+- Structured backend using layered architecture  
+
+---
+
+## 🧠 What I Learned
+
+- Designing backend systems beyond CRUD  
+- Queue prioritization and scheduling logic  
+- Real-time system design using WebSocket  
+- Handling race conditions safely  
+- Building secure verification flows  
+- Structuring scalable backend applications  
+
+---
+
+## 💡 Future Improvements
+
+- Multi-station kitchen routing  
+- Load-based balancing  
+- Redis-based queue optimization  
+- Notification system  
+- Payment gateway integration  
+- Docker deployment  
 
 ---
 
 ## 👨‍💻 Author
 
-**Dhruv Singh**
+Dhruv Singh  
 
 ---
 
-## ⭐ Support
+## ⭐ Final Note
 
-If you like this project, give it a ⭐ on GitHub!
+This is a project built with a focus on **real-world backend behavior**:
