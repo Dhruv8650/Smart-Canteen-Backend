@@ -187,7 +187,7 @@ public class OrderController {
             @RequestBody Map<String, String> body
     ) {
 
-        String pickupCode = body.get("code");
+        String pickupCode = (body == null) ? null : body.get("code");
 
         OrderResponseDTO order = orderService.verifyPickup(pickupCode);
 

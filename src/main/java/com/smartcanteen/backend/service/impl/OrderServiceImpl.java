@@ -753,6 +753,8 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("QR pickup verification request received");
 
+        qrToken = normalizeQrToken(qrToken);
+
         if (qrToken == null || qrToken.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "QR token is required");
         }
@@ -785,7 +787,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Order order = orderRepository.findByIdWithDetails(orderId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid QR code"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "INVALID_QR_TOKEN"));
 
         String qrTokenHash = qrSecurityUtil.sha256(qrToken);
 
@@ -803,11 +805,11 @@ public class OrderServiceImpl implements OrderService {
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
 
         if (order.isQrUsed() || order.getStatus() == OrderStatus.COMPLETED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "QR already used");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "ORDER_ALREADY_COMPLETED");
         }
 
         if (order.getStatus() != OrderStatus.READY) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Order not ready for pickup");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "ORDER_NOT_READY");
         }
 
         if (order.getPickupExpiry() == null || !order.getPickupExpiry().isAfter(nowUtc)) {
@@ -846,6 +848,33 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponseDTO verifyAndReturn(String pickupCode) {
         return verifyPickup(pickupCode);
+    }
+
+    private String normalizeQrToken(String input) {
+        if (input == null) return null;
+
+        String token = input.trim();
+
+        try {
+            java.net.URI uri = java.net.URI.create(token);
+            String query = uri.getRawQuery();
+
+            if (query != null) {
+                for (String param : query.split("&")) {
+                    String[] pair = param.split("=", 2);
+                    if (pair.length == 2 && pair[0].equals("code")) {
+                        return java.net.URLDecoder.decode(
+                                pair[1],
+                                java.nio.charset.StandardCharsets.UTF_8
+                        );
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Not a URL, treat as raw token
+        }
+
+        return token;
     }
 
 
