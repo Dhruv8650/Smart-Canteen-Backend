@@ -523,21 +523,20 @@ public class OrderServiceImpl implements OrderService {
 
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
 
+        // queue load
+        int queueLoad = kitchenVisibleOrders.size();
+
         List<Order> sortedOrders = kitchenVisibleOrders.stream()
                 .peek(order -> {
-                    double basePriority = priorityService.calculatePriority(order);
+                    // UPDATED SERVICE
+                    double priority = priorityService.calculatePriority(order, queueLoad);
 
-                    // PREPARING BOOST
-                    if (order.getStatus() == OrderStatus.PREPARING) {
-                        basePriority += 0.5; // small boost
-                    }
-
-                    order.setPriorityScore(basePriority);
+                    order.setPriorityScore(priority);
                 })
                 .sorted(
                         Comparator.comparingDouble((Order order) -> order.getPriorityScore())
                                 .reversed()
-                                .thenComparing(Order::getCreatedAt) // optional stability
+                                .thenComparing(Order::getCreatedAt)
                 )
                 .toList();
 
@@ -567,7 +566,10 @@ public class OrderServiceImpl implements OrderService {
                     : order.getTotalPrepTime();
 
             cumulativePrepMinutes += prepTime;
+
+            // ETA = completion time (correct approach)
             dto.setEstimatedReadyAt(nowUtc.plusMinutes(cumulativePrepMinutes));
+
             position++;
         }
 
