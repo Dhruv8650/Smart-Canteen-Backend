@@ -9,12 +9,16 @@ import com.smartcanteen.backend.exception.FoodNotFoundException;
 import com.smartcanteen.backend.repository.FoodItemRepository;
 import com.smartcanteen.backend.repository.RatingRepository;
 import com.smartcanteen.backend.service.FoodService;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
 
@@ -25,6 +29,49 @@ public class FoodServiceImpl implements FoodService {
 
     private final FoodItemRepository foodItemRepository;
     private final RatingRepository ratingRepository;
+
+    private record RatingStats(Double averageRating, long ratingCount) {}
+
+    private Map<Long, RatingStats> loadRatingStats(Set<Long> foodIds) {
+        if (foodIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return ratingRepository.getRatingSummariesByFoodItemIds(foodIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        RatingRepository.RatingSummary::getFoodItemId,
+                        summary -> new RatingStats(
+                                summary.getAverageRating(),
+                                summary.getRatingCount() == null ? 0L : summary.getRatingCount()
+                        )
+                ));
+    }
+
+    private FoodItemResponseDTO mapToDTO(
+            FoodItem food,
+            Map<Long, RatingStats> ratingStatsByFoodId) {
+
+        RatingStats stats = ratingStatsByFoodId.getOrDefault(
+                food.getId(),
+                new RatingStats(null, 0L)
+        );
+
+        return new FoodItemResponseDTO(
+                food.getId(),
+                food.getName(),
+                food.getCategory(),
+                food.getPrice(),
+                food.isAvailable(),
+                food.getImageUrl(),
+                food.getMaxPerOrder(),
+                stats.averageRating(),
+                stats.ratingCount(),
+                food.getItemType(),
+                food.getPrepTimeMinutes(),
+                food.getIsPreparedItem()
+        );
+    }
 
     @Override
     public FoodItemResponseDTO createFood(FoodItemRequestDTO request) {
@@ -84,18 +131,21 @@ public class FoodServiceImpl implements FoodService {
     }
 
     @Override
+    @Transactional
     public void deleteFood(Long id) {
 
-        log.info("Deleting food item with ID: {}", id);
+        log.info("Archiving food item with ID: {}", id);
 
-        if (!foodItemRepository.existsById(id)) {
-            log.error("Food not found for deletion: {}", id);
-            throw new FoodNotFoundException("Food not found");
-        }
+        FoodItem food = foodItemRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.error("Food not found for deletion: {}", id);
+                    return new FoodNotFoundException("Food not found");
+                });
 
-        foodItemRepository.deleteById(id);
+        food.setAvailable(false);
+        foodItemRepository.save(food);
 
-        log.info("Food item deleted successfully: {}", id);
+        log.info("Food item archived successfully: {}", id);
     }
 
     @Override
@@ -151,7 +201,14 @@ public class FoodServiceImpl implements FoodService {
 
         log.info("Menu fetched successfully with {} items", foodPage.getTotalElements());
 
-        return foodPage.map(this::mapToDTO);
+        Set<Long> foodIds = foodPage.getContent()
+                .stream()
+                .map(FoodItem::getId)
+                .collect(Collectors.toSet());
+
+        Map<Long, RatingStats> ratingStatsByFoodId = loadRatingStats(foodIds);
+
+        return foodPage.map(food -> mapToDTO(food, ratingStatsByFoodId));
     }
 
     @Override

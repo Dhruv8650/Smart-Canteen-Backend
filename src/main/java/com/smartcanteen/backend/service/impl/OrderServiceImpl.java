@@ -21,6 +21,7 @@ import com.smartcanteen.backend.service.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -221,6 +222,15 @@ public class OrderServiceImpl implements OrderService {
             );
         }
 
+        if (mergedItems.containsKey(null)) {
+            throw new IllegalArgumentException("The given id must not be null");
+        }
+
+        Map<Long, FoodItem> foodItemsById = new HashMap<>();
+
+        foodItemRepository.findAllById(mergedItems.keySet())
+                .forEach(food -> foodItemsById.put(food.getId(), food));
+
         List<ValidatedOrderLine> lines = mergedItems.entrySet()
                 .stream()
                 .map(entry -> {
@@ -228,10 +238,13 @@ public class OrderServiceImpl implements OrderService {
                     Long foodId = entry.getKey();
                     Integer quantity = entry.getValue();
 
-                    FoodItem food = foodItemRepository.findById(foodId)
-                            .orElseThrow(() -> new RuntimeException(
-                                    "Food item not found with id: " + foodId
-                            ));
+                    FoodItem food = foodItemsById.get(foodId);
+
+                    if (food == null) {
+                        throw new RuntimeException(
+                                "Food item not found with id: " + foodId
+                        );
+                    }
 
                     if (quantity == null || quantity <= 0) {
                         throw new IllegalArgumentException("Invalid quantity for item: " + foodId);
@@ -243,7 +256,6 @@ public class OrderServiceImpl implements OrderService {
 
                     // Max limit only for prepared items
                     if (enforceRealtimeChecks && food.getItemType() == ItemType.COOKED) {
-
 
                         if (food.getMaxPerOrder() != null &&
                                 quantity > food.getMaxPerOrder()) {
@@ -772,8 +784,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public boolean hasActiveOrders() {
-
-        return orderRepository.countActiveOrdersSmart(LocalDateTime.now()) > 0;
+        return !orderRepository
+                .findAnyActiveOrderId(
+                        LocalDateTime.now(),
+                        PageRequest.of(0, 1)
+                )
+                .isEmpty();
     }
 
     private String generatePickupCode(Long orderId) {
