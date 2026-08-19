@@ -53,8 +53,8 @@ public class OrderMapper {
         // TIME CALCULATION
         Duration duration = Duration.between(order.getCreatedAt(), LocalDateTime.now(ZoneOffset.UTC));
 
+        long elapsedSeconds = duration.getSeconds();
         long minutes = duration.toMinutes();
-        long seconds = duration.minusMinutes(minutes).getSeconds();
 
         // STATUS LABEL
         String statusLabel;
@@ -102,7 +102,7 @@ public class OrderMapper {
                 order.getStatus() == OrderStatus.COMPLETED,
 
                 // TIME FIELDS
-                seconds,
+                elapsedSeconds,
                 statusLabel,
 
                 // QR
