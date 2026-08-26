@@ -76,6 +76,10 @@ public class Order {
     private OrderType orderType;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "fulfillment_type", nullable = false)
+    private FulfillmentType fulfillmentType = FulfillmentType.DINE_IN;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "source")
     private OrderSource source = OrderSource.USER;
 
@@ -174,6 +178,12 @@ public class Order {
         this.orderType = orderType;
     }
 
+    public void setFulfillmentType(FulfillmentType fulfillmentType) {
+        this.fulfillmentType = fulfillmentType == null
+                ? FulfillmentType.DINE_IN
+                : fulfillmentType;
+    }
+
     public void setSource(OrderSource source) {
         this.source = source;
     }
@@ -215,4 +225,5 @@ public class Order {
     public boolean isQrUsed() {
         return Boolean.TRUE.equals(qrUsed);
     }
+
 }

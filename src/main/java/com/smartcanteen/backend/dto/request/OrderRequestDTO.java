@@ -1,5 +1,6 @@
 package com.smartcanteen.backend.dto.request;
 
+import com.smartcanteen.backend.entity.FulfillmentType;
 import com.smartcanteen.backend.entity.PaymentMethod;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -14,5 +15,7 @@ public class OrderRequestDTO {
 
     @NotNull(message = "Payment method is required")
     private PaymentMethod paymentMethod;
+
+    private FulfillmentType fulfillmentType = FulfillmentType.DINE_IN;
 
 }

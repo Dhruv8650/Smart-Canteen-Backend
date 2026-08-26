@@ -26,6 +26,8 @@ public class OrderResponseDTO {
 
     private String orderType;
 
+    private String fulfillmentType;
+
     private String orderNumber;
     private String statusLabel; // business status
     private String formattedDate;

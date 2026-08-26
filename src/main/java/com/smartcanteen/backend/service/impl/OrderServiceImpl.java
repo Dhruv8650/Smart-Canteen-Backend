@@ -60,6 +60,7 @@ public class OrderServiceImpl implements OrderService {
     private record OrderDraft(User user,
                               List<ValidatedOrderLine> lines,
                               OrderType orderType,
+                              FulfillmentType fulfillmentType,
                               BigDecimal totalAmount,
                               boolean hasCookedItems,
                               boolean hasReadyMadeItems,
@@ -86,6 +87,11 @@ public class OrderServiceImpl implements OrderService {
         if (order.getOrderType() == null) {
             log.warn("OrderType is null for orderId: {}. Defaulting to PREPARED", orderId);
             order.setOrderType(OrderType.PREPARED);
+        }
+
+        if (order.getFulfillmentType() == null) {
+            log.warn("FulfillmentType is null for orderId: {}. Defaulting to DINE_IN", orderId);
+            order.setFulfillmentType(FulfillmentType.DINE_IN);
         }
 
         //routing service
@@ -295,6 +301,10 @@ public class OrderServiceImpl implements OrderService {
                 ? OrderType.PREPARED
                 : OrderType.READYMADE;
 
+        FulfillmentType fulfillmentType = request.getFulfillmentType() != null
+                ? request.getFulfillmentType()
+                : FulfillmentType.DINE_IN;
+
 
         log.info("Order type: {}", orderType);
 
@@ -310,6 +320,7 @@ public class OrderServiceImpl implements OrderService {
                 user,
                 lines,
                 orderType,
+                fulfillmentType,
                 total,
                 hasCookedItems,
                 hasReadyMadeItems,
@@ -331,6 +342,7 @@ public class OrderServiceImpl implements OrderService {
         order.setPaymentMethod(request.getPaymentMethod());
         order.setSource(source);
         order.setOrderType(draft.orderType());
+        order.setFulfillmentType(draft.fulfillmentType());
         order.setHasCookedItems(draft.hasCookedItems());
         order.setHasReadyMadeItems(draft.hasReadyMadeItems());
         order.setTotalPrepTime(draft.totalPrepTime());
@@ -456,7 +468,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
 
-        validateStatusTransition(order.getStatus(), OrderStatus.CANCELLED);
+        validateStatusTransition(order.getStatus(), OrderStatus.CANCELLED,resolveFulfillmentType(order));
 
         order.setStatus(OrderStatus.CANCELLED);
 
@@ -665,8 +677,12 @@ public class OrderServiceImpl implements OrderService {
         if (SecurityUtils.isKitchen()) {
 
             if (newStatus != OrderStatus.PREPARING &&
+                    newStatus != OrderStatus.PACKING &&
                     newStatus != OrderStatus.READY) {
-                throw new IllegalStateException("Kitchen can only set PREPARING or READY");
+
+                throw new IllegalStateException(
+                        "Kitchen can only set PREPARING, PACKING or READY"
+                );
             }
 
         } else if (SecurityUtils.isManager()) {
@@ -684,7 +700,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         //  EXISTING VALIDATION
-        validateStatusTransition(order.getStatus(), newStatus);
+        validateStatusTransition(order.getStatus(), newStatus,resolveFulfillmentType(order));
 
         order.setStatus(newStatus);
         Order saved = orderRepository.save(order);
@@ -763,23 +779,52 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void cancelOrder(Long orderId) {
 
+        log.info("Cancelling order: {}", orderId);
+
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
 
         String email = SecurityUtils.getCurrentUserEmail();
         boolean isAdmin = SecurityUtils.isAdmin();
 
         if (!isAdmin && !order.getUser().getEmail().equals(email)) {
-            throw new AccessDeniedException("You are not allowed to cancel this order");
+            throw new AccessDeniedException(
+                    "You are not allowed to cancel this order"
+            );
         }
 
         if (order.getStatus() == OrderStatus.COMPLETED) {
-            throw new IllegalStateException("Cannot cancel completed order");
+            throw new IllegalStateException(
+                    "Cannot cancel completed order"
+            );
         }
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    "Order already cancelled"
+            );
+        }
+
+        // Use the same transition validation used by the other
+        // order-status update paths.
+        validateStatusTransition(
+                order.getStatus(),
+                OrderStatus.CANCELLED,
+                resolveFulfillmentType(order)
+        );
 
         order.setStatus(OrderStatus.CANCELLED);
 
-        orderRepository.save(order);
+        Order saved = orderRepository.save(order);
+
+        OrderResponseDTO response = OrderMapper.toDTO(saved);
+
+        // Notify existing WebSocket/event consumers.
+        eventPublisher.publishEvent(
+                new OrderStatusUpdatedEvent(response)
+        );
+
+        log.info("Order {} cancelled successfully", orderId);
     }
 
     @Override
@@ -929,47 +974,101 @@ public class OrderServiceImpl implements OrderService {
 
 
     private void validateStatusTransition(OrderStatus current,
-                                          OrderStatus next) {
+                                          OrderStatus next,
+                                          FulfillmentType fulfillmentType) {
 
-        log.info("Validating status transition from {} to {}", current, next);
+        FulfillmentType effectiveFulfillmentType = fulfillmentType != null
+                ? fulfillmentType
+                : FulfillmentType.DINE_IN;
+
+        log.info(
+                "Validating status transition from {} to {} for fulfillment type {}",
+                current,
+                next,
+                effectiveFulfillmentType
+        );
 
         switch (current) {
 
             case PAYMENT_PENDING -> {
                 if (next != OrderStatus.PENDING &&
                         next != OrderStatus.CANCELLED) {
-                    throw new IllegalStateException("Invalid transition from PAYMENT_PENDING");
+                    throw new IllegalStateException(
+                            "Invalid transition from PAYMENT_PENDING"
+                    );
                 }
             }
 
             case PENDING -> {
                 if (next != OrderStatus.PREPARING &&
                         next != OrderStatus.CANCELLED) {
-                    log.warn("Invalid transition from PENDING to {}", next);
-                    throw new IllegalStateException("Invalid transition from PENDING");
+
+                    throw new IllegalStateException(
+                            "Invalid transition from PENDING"
+                    );
                 }
             }
 
             case PREPARING -> {
+
+                if (next == OrderStatus.CANCELLED) {
+                    return;
+                }
+
+                if (effectiveFulfillmentType == FulfillmentType.DINE_IN &&
+                        next == OrderStatus.READY) {
+                    return;
+                }
+
+                if (effectiveFulfillmentType == FulfillmentType.TAKEAWAY &&
+                        next == OrderStatus.PACKING) {
+                    return;
+                }
+
+                throw new IllegalStateException(
+                        effectiveFulfillmentType == FulfillmentType.TAKEAWAY
+                                ? "TAKEAWAY orders must move from PREPARING to PACKING"
+                                : "DINE_IN orders cannot move from PREPARING to PACKING"
+                );
+            }
+
+            case PACKING -> {
+
+                if (effectiveFulfillmentType != FulfillmentType.TAKEAWAY) {
+                    throw new IllegalStateException(
+                            "PACKING is only valid for TAKEAWAY orders"
+                    );
+                }
+
                 if (next != OrderStatus.READY &&
                         next != OrderStatus.CANCELLED) {
-                    log.warn("Invalid transition from PREPARING to {}", next);
-                    throw new IllegalStateException("Invalid transition from PREPARING");
+
+                    throw new IllegalStateException(
+                            "Invalid transition from PACKING"
+                    );
                 }
             }
 
             case READY -> {
+
                 if (next != OrderStatus.COMPLETED) {
-                    log.warn("Invalid transition from READY to {}", next);
-                    throw new IllegalStateException("Invalid transition from READY");
+                    throw new IllegalStateException(
+                            "Invalid transition from READY"
+                    );
                 }
             }
 
             default -> {
-                log.error("Invalid order state: {}", current);
-                throw new IllegalStateException("Order cannot be modified in current state");
+                throw new IllegalStateException(
+                        "Order cannot be modified in current state"
+                );
             }
         }
+    }
+    private FulfillmentType resolveFulfillmentType(Order order) {
+        return order.getFulfillmentType() != null
+                ? order.getFulfillmentType()
+                : FulfillmentType.DINE_IN;
     }
 
 

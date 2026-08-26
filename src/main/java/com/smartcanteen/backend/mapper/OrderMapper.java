@@ -92,6 +92,10 @@ public class OrderMapper {
                         ? order.getOrderType().name()
                         : "UNKNOWN",
 
+                order.getFulfillmentType() != null
+                        ? order.getFulfillmentType().name()
+                        : "DINE_IN",
+
                 // EXISTING FIELDS
                 "ORD-" + order.getId(),
                 formatStatus(order.getStatus().name()),
@@ -123,6 +127,7 @@ public class OrderMapper {
             case "PENDING" -> "Pending";
             case "PAYMENT_PENDING" -> "Payment Pending";
             case "PREPARING" -> "Preparing";
+            case "PACKING" -> "Packing";
             case "READY" -> "Ready";
             case "COMPLETED" -> "Delivered";
             case "CANCELLED" -> "Cancelled";
