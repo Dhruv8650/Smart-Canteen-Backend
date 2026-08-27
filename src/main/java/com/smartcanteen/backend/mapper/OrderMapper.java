@@ -45,7 +45,8 @@ public class OrderMapper {
                             0L,   // ratingCount
                             food.getItemType(),
                             food.getPrepTimeMinutes(),
-                            food.getIsPreparedItem()
+                            food.getIsPreparedItem(),
+                            food.getRequiredResource()
                     );
                 })
                 .collect(Collectors.toList());

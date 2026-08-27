@@ -69,7 +69,8 @@ public class FoodServiceImpl implements FoodService {
                 stats.ratingCount(),
                 food.getItemType(),
                 food.getPrepTimeMinutes(),
-                food.getIsPreparedItem()
+                food.getIsPreparedItem(),
+                food.getRequiredResource()
         );
     }
 
@@ -88,6 +89,7 @@ public class FoodServiceImpl implements FoodService {
         food.setMaxPerOrder(request.getMaxPerOrder());
         food.setItemType(itemType);
         food.setPrepTimeMinutes(resolvePrepTime(request.getPrepTimeMinutes()));
+        food.setRequiredResource(request.getRequiredResource());
         food.setMaxPerOrder(request.getMaxPerOrder());
 
         FoodItem saved = foodItemRepository.save(food);
@@ -118,6 +120,7 @@ public class FoodServiceImpl implements FoodService {
         food.setMaxPerOrder(request.getMaxPerOrder());
         food.setItemType(itemType);
         food.setPrepTimeMinutes(resolvePrepTime(request.getPrepTimeMinutes()));
+        food.setRequiredResource(request.getRequiredResource());
         food.setMaxPerOrder(request.getMaxPerOrder());
         //update image only if provided
         if (request.getImageUrl() != null && !request.getImageUrl().isBlank()) {
@@ -253,9 +256,9 @@ public class FoodServiceImpl implements FoodService {
                 ratingCount,
                 food.getItemType(),
                 food.getPrepTimeMinutes(),
-                food.getIsPreparedItem()
-
-                );
+                food.getIsPreparedItem(),
+                food.getRequiredResource()
+        );
     }
 
     private ItemType resolveItemType(ItemType itemType, Boolean isPreparedItem) {

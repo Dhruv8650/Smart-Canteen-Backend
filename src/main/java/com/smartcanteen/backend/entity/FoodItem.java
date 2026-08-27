@@ -39,6 +39,10 @@ public class FoodItem {
     @Column(nullable = false)
     private int prepTimeMinutes = 0;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "required_resource")
+    private KitchenResourceType requiredResource;
+
     @Deprecated
     @Column(name = "is_prepared_item")
     private Boolean isPreparedItem = false;
@@ -99,6 +103,9 @@ public class FoodItem {
     public int getPrepTimeMinutes() {
         return prepTimeMinutes;
     }
+    public KitchenResourceType getRequiredResource() {
+        return requiredResource;
+    }
 
     // Setters
     public void setName(String name) { this.name = name; }
@@ -128,5 +135,8 @@ public class FoodItem {
             throw new IllegalArgumentException("prepTimeMinutes cannot be negative");
         }
         this.prepTimeMinutes = prepTimeMinutes;
+    }
+    public void setRequiredResource(KitchenResourceType requiredResource) {
+        this.requiredResource = requiredResource;
     }
 }
