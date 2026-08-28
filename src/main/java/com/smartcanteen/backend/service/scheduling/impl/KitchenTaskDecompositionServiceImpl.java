@@ -1,4 +1,4 @@
-package com.smartcanteen.backend.service.scheduling;
+package com.smartcanteen.backend.service.scheduling.impl;
 
 import com.smartcanteen.backend.dto.scheduling.SchedulingTask;
 import com.smartcanteen.backend.entity.FoodCategory;
@@ -7,6 +7,7 @@ import com.smartcanteen.backend.entity.ItemType;
 import com.smartcanteen.backend.entity.KitchenResourceType;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderItem;
+import com.smartcanteen.backend.service.scheduling.KitchenTaskDecompositionService;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

@@ -1,4 +1,4 @@
-package com.smartcanteen.backend.service;
+package com.smartcanteen.backend.service.scheduling;
 
 import com.smartcanteen.backend.dto.scheduling.SchedulingTask;
 import com.smartcanteen.backend.entity.FoodCategory;
@@ -7,8 +7,7 @@ import com.smartcanteen.backend.entity.ItemType;
 import com.smartcanteen.backend.entity.KitchenResourceType;
 import com.smartcanteen.backend.entity.Order;
 import com.smartcanteen.backend.entity.OrderItem;
-import com.smartcanteen.backend.service.scheduling.KitchenTaskDecompositionService;
-import com.smartcanteen.backend.service.scheduling.KitchenTaskDecompositionServiceImpl;
+import com.smartcanteen.backend.service.scheduling.impl.KitchenTaskDecompositionServiceImpl;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
