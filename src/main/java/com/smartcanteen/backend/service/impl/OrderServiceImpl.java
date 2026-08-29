@@ -28,10 +28,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Duration;
-import java.time.Instant;
+import com.smartcanteen.backend.dto.scheduling.ResourceBottleneck;
+import com.smartcanteen.backend.dto.scheduling.ResourceWorkload;
+import com.smartcanteen.backend.dto.scheduling.SchedulingTask;
+import com.smartcanteen.backend.entity.KitchenResourceType;
+import com.smartcanteen.backend.service.scheduling.KitchenTaskDecompositionService;
+import com.smartcanteen.backend.service.scheduling.ResourceBottleneckService;
+import com.smartcanteen.backend.service.scheduling.ResourceWorkloadService;
+
+
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.*;
 
@@ -52,8 +58,9 @@ public class OrderServiceImpl implements OrderService {
     private final CartService cartService;
     private final RoutingService routingService;
     private final PriorityService priorityService;
-
-
+    private final KitchenTaskDecompositionService kitchenTaskDecompositionService;
+    private final ResourceWorkloadService resourceWorkloadService;
+    private final ResourceBottleneckService resourceBottleneckService;
 
     private record ValidatedOrderLine(FoodItem foodItem, int quantity) {}
 
@@ -547,13 +554,50 @@ public class OrderServiceImpl implements OrderService {
 
         LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
 
+        Map<Long, List<SchedulingTask>> tasksByOrderId =
+                new HashMap<>();
+
+        List<SchedulingTask> allTasks =
+                new ArrayList<>();
+
+        for (Order order : kitchenVisibleOrders) {
+
+            List<SchedulingTask> orderTasks =
+                    kitchenTaskDecompositionService
+                            .decompose(order);
+
+            tasksByOrderId.put(
+                    order.getId(),
+                    orderTasks
+            );
+
+            allTasks.addAll(orderTasks);
+        }
+
+        Map<KitchenResourceType, ResourceWorkload> resourceWorkloads =
+                resourceWorkloadService.calculateWorkload(
+                        allTasks
+                );
+
+        Optional<ResourceBottleneck> bottleneck =
+                resourceBottleneckService.detectBottleneck(
+                        resourceWorkloads
+                );
+
         // queue load
         int queueLoad = kitchenVisibleOrders.size();
 
         List<Order> sortedOrders = kitchenVisibleOrders.stream()
                 .peek(order -> {
                     // UPDATED SERVICE
-                    double priority = priorityService.calculatePriority(order, queueLoad);
+                    double priority =
+                            priorityService.calculatePriority(
+                                    order,
+                                    queueLoad,
+                                    tasksByOrderId.get(order.getId()),
+                                    resourceWorkloads,
+                                    bottleneck
+                            );
 
                     order.setPriorityScore(priority);
                 })
