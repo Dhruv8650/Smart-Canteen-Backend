@@ -2,6 +2,7 @@ package com.smartcanteen.backend.controller;
 
 import com.smartcanteen.backend.dto.common.ApiResponse;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.dto.response.scheduling.KitchenScheduleSnapshotResponseDTO;
 import com.smartcanteen.backend.entity.OrderStatus;
 import com.smartcanteen.backend.service.CanteenService;
 import com.smartcanteen.backend.service.OrderService;
@@ -34,6 +35,21 @@ public class KitchenController {
                         .success(true)
                         .message("Kitchen orders fetched")
                         .data(orders)
+                        .build()
+        );
+    }
+
+    @GetMapping("/schedule")
+    public ResponseEntity<ApiResponse<KitchenScheduleSnapshotResponseDTO>> getKitchenSchedule() {
+
+        KitchenScheduleSnapshotResponseDTO schedule =
+                orderService.getKitchenScheduleSnapshot();
+
+        return ResponseEntity.ok(
+                ApiResponse.<KitchenScheduleSnapshotResponseDTO>builder()
+                        .success(true)
+                        .message("Kitchen schedule fetched")
+                        .data(schedule)
                         .build()
         );
     }

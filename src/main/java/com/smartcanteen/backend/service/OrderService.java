@@ -2,6 +2,7 @@ package com.smartcanteen.backend.service;
 
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.dto.response.scheduling.KitchenScheduleSnapshotResponseDTO;
 import com.smartcanteen.backend.entity.OrderStatus;
 
 import java.math.BigDecimal;
@@ -47,6 +48,8 @@ public interface OrderService {
     OrderResponseDTO verifyAndReturn(String pickupCode);
 
     List<OrderResponseDTO> buildKitchenQueueWithETA();
+
+    KitchenScheduleSnapshotResponseDTO getKitchenScheduleSnapshot();
 
     OrderResponseDTO verifyPickup(String qrToken);
 

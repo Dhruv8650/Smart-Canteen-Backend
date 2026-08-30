@@ -4,6 +4,7 @@ import com.smartcanteen.backend.dto.request.OrderItemRequestDTO;
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.dto.response.scheduling.*;
 import com.smartcanteen.backend.dto.scheduling.*;
 import com.smartcanteen.backend.dto.websocket.OrderCreatedEvent;
 import com.smartcanteen.backend.entity.*;
@@ -70,6 +71,16 @@ public class OrderServiceImpl implements OrderService {
                               boolean hasCookedItems,
                               boolean hasReadyMadeItems,
                               int totalPrepTime) {}
+
+    private record KitchenSchedulingCalculation(
+            LocalDateTime scheduledAt,
+            List<Order> sortedOrders,
+            Map<Long, List<SchedulingTask>> tasksByOrderId,
+            Map<KitchenResourceType, ResourceWorkload> resourceWorkloads,
+            Optional<ResourceBottleneck> bottleneck,
+            ResourceScheduleSnapshot resourceScheduleSnapshot,
+            ResourceTimelineSnapshot resourceTimelineSnapshot
+    ) {}
 
 
 
@@ -536,6 +547,102 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> buildKitchenQueueWithETA() {
 
+        KitchenSchedulingCalculation calculation =
+                buildKitchenSchedulingCalculation();
+
+        if (calculation.sortedOrders().isEmpty()) {
+            return List.of();
+        }
+
+        LocalDateTime nowUtc =
+                calculation.scheduledAt();
+
+        Map<Long, LocalDateTime> resourceAwareReadyAtByOrderId =
+                calculation.resourceTimelineSnapshot()
+                        .orderReadyAt();
+
+        List<OrderResponseDTO> response =
+                new ArrayList<>();
+
+        int cumulativePrepMinutes = 0;
+        int position = 1;
+
+        for (Order order : calculation.sortedOrders()) {
+
+            OrderResponseDTO dto =
+                    OrderMapper.toDTO(order);
+
+            List<FoodItemResponseDTO> kitchenItems =
+                    filterKitchenItems(dto.getItems());
+
+            if (kitchenItems.isEmpty()) {
+                continue;
+            }
+
+            dto.setItems(kitchenItems);
+            dto.setTotalItems(kitchenItems.size());
+
+            dto.setPriorityScore(
+                    order.getPriorityScore()
+            );
+
+            dto.setQueuePosition(position);
+
+            /*
+             * NEW PHASE 8 ETA
+             */
+            dto.setResourceAwareEstimatedReadyAt(
+                    resourceAwareReadyAtByOrderId.get(
+                            order.getId()
+                    )
+            );
+
+            /*
+             * EXISTING LEGACY ETA
+             * DO NOT CHANGE THIS BEHAVIOR.
+             */
+            int prepTime =
+                    order.getTotalPrepTime() == null
+                            || order.getTotalPrepTime() <= 0
+                            ? 1
+                            : order.getTotalPrepTime();
+
+            cumulativePrepMinutes += prepTime;
+
+            dto.setEstimatedReadyAt(
+                    nowUtc.plusMinutes(
+                            cumulativePrepMinutes
+                    )
+            );
+
+            /*
+             * Add DTO only after BOTH ETA fields are populated.
+             */
+            response.add(dto);
+
+            position++;
+        }
+
+        return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public KitchenScheduleSnapshotResponseDTO getKitchenScheduleSnapshot() {
+
+        KitchenSchedulingCalculation calculation =
+                buildKitchenSchedulingCalculation();
+
+        return toKitchenScheduleSnapshotResponse(
+                calculation
+        );
+    }
+
+    private KitchenSchedulingCalculation buildKitchenSchedulingCalculation() {
+
+        LocalDateTime nowUtc =
+                LocalDateTime.now(ZoneOffset.UTC);
+
         List<Order> kitchenOrders =
                 orderRepository.findByStatusesWithDetails(List.of(
                         OrderStatus.PENDING,
@@ -545,12 +652,6 @@ public class OrderServiceImpl implements OrderService {
         List<Order> kitchenVisibleOrders = kitchenOrders.stream()
                 .filter(this::hasKitchenVisibleItems)
                 .toList();
-
-        if (kitchenVisibleOrders.isEmpty()) {
-            return List.of();
-        }
-
-        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
 
         Map<Long, List<SchedulingTask>> tasksByOrderId =
                 new HashMap<>();
@@ -628,72 +729,184 @@ public class OrderServiceImpl implements OrderService {
                         nowUtc
                 );
 
-        Map<Long, LocalDateTime> resourceAwareReadyAtByOrderId =
-                resourceTimelineSnapshot.orderReadyAt();
+        return new KitchenSchedulingCalculation(
+                nowUtc,
+                sortedOrders,
+                tasksByOrderId,
+                resourceWorkloads,
+                bottleneck,
+                resourceScheduleSnapshot,
+                resourceTimelineSnapshot
+        );
+    }
 
-        List<OrderResponseDTO> response =
+    private KitchenScheduleSnapshotResponseDTO toKitchenScheduleSnapshotResponse(
+            KitchenSchedulingCalculation calculation
+    ) {
+
+        return new KitchenScheduleSnapshotResponseDTO(
+                calculation.scheduledAt(),
+                calculation.sortedOrders().size(),
+                calculation.resourceScheduleSnapshot().totalTasks(),
+                toBottleneckResponse(calculation.bottleneck()),
+                toResourceScheduleResponses(calculation),
+                toOrderReadyTimeResponses(calculation)
+        );
+    }
+
+    private KitchenScheduleBottleneckResponseDTO toBottleneckResponse(
+            Optional<ResourceBottleneck> bottleneck
+    ) {
+
+        if (bottleneck == null || bottleneck.isEmpty()) {
+            return null;
+        }
+
+        ResourceBottleneck value =
+                bottleneck.get();
+
+        return new KitchenScheduleBottleneckResponseDTO(
+                value.resource(),
+                value.workloadMinutes(),
+                value.congestion(),
+                value.pressure()
+        );
+    }
+
+    private List<KitchenResourceScheduleResponseDTO> toResourceScheduleResponses(
+            KitchenSchedulingCalculation calculation
+    ) {
+
+        List<KitchenResourceScheduleResponseDTO> resources =
                 new ArrayList<>();
 
-        int cumulativePrepMinutes = 0;
-        int position = 1;
+        for (KitchenResourceType resource :
+                KitchenResourceType.values()) {
 
-        for (Order order : sortedOrders) {
+            ResourceWorkload workload =
+                    calculation.resourceWorkloads()
+                            .get(resource);
 
-            OrderResponseDTO dto =
-                    OrderMapper.toDTO(order);
+            if (workload == null) {
+                workload =
+                        new ResourceWorkload(
+                                resource,
+                                0,
+                                0.0,
+                                0.0
+                        );
+            }
 
-            List<FoodItemResponseDTO> kitchenItems =
-                    filterKitchenItems(dto.getItems());
+            ResourceTimeline timeline =
+                    calculation.resourceTimelineSnapshot()
+                            .timelinesByResource()
+                            .get(resource);
 
-            if (kitchenItems.isEmpty()) {
+            List<ScheduledResourceTask> dispatchTasks =
+                    calculation.resourceScheduleSnapshot()
+                            .tasksByResource()
+                            .getOrDefault(
+                                    resource,
+                                    List.of()
+                            );
+
+            resources.add(
+                    new KitchenResourceScheduleResponseDTO(
+                            resource,
+                            workload.workloadMinutes(),
+                            workload.congestion(),
+                            workload.pressure(),
+                            timeline == null
+                                    ? calculation.scheduledAt()
+                                    : timeline.availableAt(),
+                            timeline == null
+                                    ? 0
+                                    : timeline.totalDurationMinutes(),
+                            toDispatchTaskResponses(dispatchTasks),
+                            timeline == null
+                                    ? List.of()
+                                    : toTimelineTaskResponses(
+                                    timeline.tasks()
+                            )
+                    )
+            );
+        }
+
+        return resources;
+    }
+
+    private List<KitchenDispatchTaskResponseDTO> toDispatchTaskResponses(
+            List<ScheduledResourceTask> tasks
+    ) {
+
+        if (tasks == null || tasks.isEmpty()) {
+            return List.of();
+        }
+
+        return tasks.stream()
+                .map(task ->
+                        new KitchenDispatchTaskResponseDTO(
+                                task.orderId(),
+                                task.orderItemId(),
+                                task.foodItemId(),
+                                task.durationMinutes(),
+                                task.sequence()
+                        )
+                )
+                .toList();
+    }
+
+    private List<KitchenTimelineTaskResponseDTO> toTimelineTaskResponses(
+            List<ScheduledTaskTimeline> tasks
+    ) {
+
+        if (tasks == null || tasks.isEmpty()) {
+            return List.of();
+        }
+
+        return tasks.stream()
+                .map(task ->
+                        new KitchenTimelineTaskResponseDTO(
+                                task.orderId(),
+                                task.orderItemId(),
+                                task.foodItemId(),
+                                task.durationMinutes(),
+                                task.sequence(),
+                                task.startTime(),
+                                task.endTime()
+                        )
+                )
+                .toList();
+    }
+
+    private List<KitchenOrderReadyTimeResponseDTO> toOrderReadyTimeResponses(
+            KitchenSchedulingCalculation calculation
+    ) {
+
+        Map<Long, LocalDateTime> orderReadyAt =
+                calculation.resourceTimelineSnapshot()
+                        .orderReadyAt();
+
+        List<KitchenOrderReadyTimeResponseDTO> result =
+                new ArrayList<>();
+
+        for (Order order : calculation.sortedOrders()) {
+            LocalDateTime readyAt =
+                    orderReadyAt.get(order.getId());
+
+            if (readyAt == null) {
                 continue;
             }
 
-            dto.setItems(kitchenItems);
-            dto.setTotalItems(kitchenItems.size());
-
-            dto.setPriorityScore(
-                    order.getPriorityScore()
-            );
-
-            dto.setQueuePosition(position);
-
-            /*
-             * NEW PHASE 8 ETA
-             */
-            dto.setResourceAwareEstimatedReadyAt(
-                    resourceAwareReadyAtByOrderId.get(
-                            order.getId()
+            result.add(
+                    new KitchenOrderReadyTimeResponseDTO(
+                            order.getId(),
+                            readyAt
                     )
             );
-
-            /*
-             * EXISTING LEGACY ETA
-             * DO NOT CHANGE THIS BEHAVIOR.
-             */
-            int prepTime =
-                    order.getTotalPrepTime() == null
-                            || order.getTotalPrepTime() <= 0
-                            ? 1
-                            : order.getTotalPrepTime();
-
-            cumulativePrepMinutes += prepTime;
-
-            dto.setEstimatedReadyAt(
-                    nowUtc.plusMinutes(
-                            cumulativePrepMinutes
-                    )
-            );
-
-            /*
-             * Add DTO only after BOTH ETA fields are populated.
-             */
-            response.add(dto);
-
-            position++;
         }
 
-        return response;
+        return result;
     }
 
     private boolean hasKitchenVisibleItems(Order order) {
