@@ -4,6 +4,7 @@ import com.smartcanteen.backend.dto.request.OrderItemRequestDTO;
 import com.smartcanteen.backend.dto.request.OrderRequestDTO;
 import com.smartcanteen.backend.dto.response.FoodItemResponseDTO;
 import com.smartcanteen.backend.dto.response.OrderResponseDTO;
+import com.smartcanteen.backend.dto.scheduling.*;
 import com.smartcanteen.backend.dto.websocket.OrderCreatedEvent;
 import com.smartcanteen.backend.entity.*;
 import com.smartcanteen.backend.events.OrderStatusUpdatedEvent;
@@ -18,6 +19,7 @@ import com.smartcanteen.backend.repository.UserRepository;
 import com.smartcanteen.backend.security.QrSecurityUtil;
 import com.smartcanteen.backend.security.SecurityUtils;
 import com.smartcanteen.backend.service.*;
+import com.smartcanteen.backend.service.scheduling.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -28,13 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.smartcanteen.backend.dto.scheduling.ResourceBottleneck;
-import com.smartcanteen.backend.dto.scheduling.ResourceWorkload;
-import com.smartcanteen.backend.dto.scheduling.SchedulingTask;
 import com.smartcanteen.backend.entity.KitchenResourceType;
-import com.smartcanteen.backend.service.scheduling.KitchenTaskDecompositionService;
-import com.smartcanteen.backend.service.scheduling.ResourceBottleneckService;
-import com.smartcanteen.backend.service.scheduling.ResourceWorkloadService;
 
 
 import java.time.LocalDateTime;
@@ -61,6 +57,8 @@ public class OrderServiceImpl implements OrderService {
     private final KitchenTaskDecompositionService kitchenTaskDecompositionService;
     private final ResourceWorkloadService resourceWorkloadService;
     private final ResourceBottleneckService resourceBottleneckService;
+    private final ResourceAwareSchedulingService resourceAwareSchedulingService;
+    private final ResourceTimelineSchedulingService resourceTimelineSchedulingService;
 
     private record ValidatedOrderLine(FoodItem foodItem, int quantity) {}
 
@@ -584,12 +582,10 @@ public class OrderServiceImpl implements OrderService {
                         resourceWorkloads
                 );
 
-        // queue load
         int queueLoad = kitchenVisibleOrders.size();
 
         List<Order> sortedOrders = kitchenVisibleOrders.stream()
                 .peek(order -> {
-                    // UPDATED SERVICE
                     double priority =
                             priorityService.calculatePriority(
                                     order,
@@ -602,20 +598,52 @@ public class OrderServiceImpl implements OrderService {
                     order.setPriorityScore(priority);
                 })
                 .sorted(
-                        Comparator.comparingDouble((Order order) -> order.getPriorityScore())
+                        Comparator.comparingDouble(
+                                        (Order order) ->
+                                                order.getPriorityScore()
+                                )
                                 .reversed()
                                 .thenComparing(Order::getCreatedAt)
                 )
                 .toList();
 
-        List<OrderResponseDTO> response = new ArrayList<>();
+        /*
+         * PHASE 6
+         * Build resource-aware dispatch schedule ONCE.
+         */
+        ResourceScheduleSnapshot resourceScheduleSnapshot =
+                resourceAwareSchedulingService.buildDispatchSnapshot(
+                        sortedOrders,
+                        tasksByOrderId,
+                        bottleneck
+                );
+
+        /*
+         * PHASE 7
+         * Build resource timeline ONCE using the SAME nowUtc.
+         */
+        ResourceTimelineSnapshot resourceTimelineSnapshot =
+                resourceTimelineSchedulingService.buildTimeline(
+                        resourceScheduleSnapshot,
+                        nowUtc
+                );
+
+        Map<Long, LocalDateTime> resourceAwareReadyAtByOrderId =
+                resourceTimelineSnapshot.orderReadyAt();
+
+        List<OrderResponseDTO> response =
+                new ArrayList<>();
 
         int cumulativePrepMinutes = 0;
         int position = 1;
 
         for (Order order : sortedOrders) {
-            OrderResponseDTO dto = OrderMapper.toDTO(order);
-            List<FoodItemResponseDTO> kitchenItems = filterKitchenItems(dto.getItems());
+
+            OrderResponseDTO dto =
+                    OrderMapper.toDTO(order);
+
+            List<FoodItemResponseDTO> kitchenItems =
+                    filterKitchenItems(dto.getItems());
 
             if (kitchenItems.isEmpty()) {
                 continue;
@@ -624,19 +652,43 @@ public class OrderServiceImpl implements OrderService {
             dto.setItems(kitchenItems);
             dto.setTotalItems(kitchenItems.size());
 
-            dto.setPriorityScore(order.getPriorityScore());
+            dto.setPriorityScore(
+                    order.getPriorityScore()
+            );
+
             dto.setQueuePosition(position);
 
-            response.add(dto);
+            /*
+             * NEW PHASE 8 ETA
+             */
+            dto.setResourceAwareEstimatedReadyAt(
+                    resourceAwareReadyAtByOrderId.get(
+                            order.getId()
+                    )
+            );
 
-            int prepTime = order.getTotalPrepTime() == null || order.getTotalPrepTime() <= 0
-                    ? 1
-                    : order.getTotalPrepTime();
+            /*
+             * EXISTING LEGACY ETA
+             * DO NOT CHANGE THIS BEHAVIOR.
+             */
+            int prepTime =
+                    order.getTotalPrepTime() == null
+                            || order.getTotalPrepTime() <= 0
+                            ? 1
+                            : order.getTotalPrepTime();
 
             cumulativePrepMinutes += prepTime;
 
-            // ETA = completion time (correct approach)
-            dto.setEstimatedReadyAt(nowUtc.plusMinutes(cumulativePrepMinutes));
+            dto.setEstimatedReadyAt(
+                    nowUtc.plusMinutes(
+                            cumulativePrepMinutes
+                    )
+            );
+
+            /*
+             * Add DTO only after BOTH ETA fields are populated.
+             */
+            response.add(dto);
 
             position++;
         }

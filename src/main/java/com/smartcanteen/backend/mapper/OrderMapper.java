@@ -118,6 +118,7 @@ public class OrderMapper {
                 // QUEUE / ETA FIELDS - filled dynamically for kitchen queue
                 order.getPriorityScore(),
                 null,
+                null,
                 null
         );
     }

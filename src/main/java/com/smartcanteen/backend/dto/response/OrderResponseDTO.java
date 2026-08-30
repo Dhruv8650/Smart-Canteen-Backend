@@ -41,6 +41,7 @@ public class OrderResponseDTO {
     private boolean showQr;
     private Double priorityScore;
     private LocalDateTime estimatedReadyAt;
+    private LocalDateTime resourceAwareEstimatedReadyAt;
     private Integer queuePosition;
 
 }
